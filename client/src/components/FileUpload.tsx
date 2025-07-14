@@ -178,7 +178,7 @@ export function FileUpload({
       <div
         {...getRootProps()}
         data-upload="dropzone"
-        onClick={handleDropzoneClick}
+        {...(!user && { onClick: handleDropzoneClick })}
         className={cn(
           "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors file-upload",
           isDragActive 
