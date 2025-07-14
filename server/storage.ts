@@ -23,6 +23,7 @@ export interface IStorage {
   // User methods
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   upsertUser(user: UpsertUser): Promise<User>;
   
@@ -77,6 +78,12 @@ export class MemStorage implements IStorage {
   async getUserByUsername(username: string): Promise<User | undefined> {
     return Array.from(this.users.values()).find(
       (user) => user.email === username,
+    );
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.email === email,
     );
   }
 
@@ -287,6 +294,11 @@ export class MemStorage implements IStorage {
 
 // Use database storage instead of memory storage for persistence
 class DatabaseStorage implements IStorage {
+  constructor() {
+    // Initialize demo data when DatabaseStorage is created
+    this.initializeDemoData().catch(console.error);
+  }
+
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
@@ -295,6 +307,11 @@ class DatabaseStorage implements IStorage {
   async getUserByUsername(username: string): Promise<User | undefined> {
     // This method is no longer used with Replit Auth but kept for interface compatibility
     return undefined;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
@@ -399,6 +416,107 @@ class DatabaseStorage implements IStorage {
 
   async deleteChatSession(id: number): Promise<void> {
     await db.delete(chatSessions).where(eq(chatSessions.id, id));
+  }
+
+  private async initializeDemoData(): Promise<void> {
+    try {
+      // First, ensure demo user exists
+      const demoUser = await this.getUser("1");
+      if (!demoUser) {
+        console.log("Creating demo user...");
+        await this.createUser({
+          id: "1",
+          email: "demo@example.com",
+          firstName: "Demo",
+          lastName: "User",
+          profileImageUrl: null
+        });
+        console.log("Demo user created successfully");
+      }
+
+      // Check if demo dataset already exists
+      const existingDatasets = await this.getDatasets("1");
+      if (existingDatasets.length > 0) {
+        console.log("Demo data already exists, skipping initialization");
+        return;
+      }
+
+      // Create demo dataset
+      const csvPath = path.join(process.cwd(), 'sample_ecommerce_data.csv');
+      if (fs.existsSync(csvPath)) {
+        console.log("Loading demo dataset...");
+        const csvContent = fs.readFileSync(csvPath, 'utf8');
+        const parseResult = Papa.parse(csvContent, { 
+          header: true, 
+          skipEmptyLines: true,
+          dynamicTyping: true 
+        });
+
+        if (parseResult.data && parseResult.data.length > 0) {
+          const data = parseResult.data as any[];
+          const columns = Object.keys(data[0]);
+          
+          const demoDatasetData = {
+            userId: "1",
+            filename: 'sample_ecommerce_data.csv',
+            originalName: 'E-commerce Customer Analytics Demo',
+            columns,
+            rowCount: data.length,
+            fileSize: csvContent.length,
+            data
+          };
+
+          const demoDataset = await this.createDataset(demoDatasetData);
+          console.log("Demo dataset created with ID:", demoDataset.id);
+
+          // Create demo models
+          await this.createModel({
+            userId: "1",
+            datasetId: demoDataset.id,
+            name: 'Customer Churn Prediction',
+            type: 'classification',
+            algorithm: 'Random Forest',
+            targetColumn: 'churn_risk',
+            accuracy: '94.2%',
+            metrics: {
+              accuracy: 0.942,
+              precision: 0.89,
+              recall: 0.91,
+              f1Score: 0.90
+            },
+            modelData: { 
+              trained: true,
+              features: columns.filter(col => col !== 'churn_risk'),
+              trainingDate: new Date().toISOString()
+            }
+          });
+
+          await this.createModel({
+            userId: "1",
+            datasetId: demoDataset.id,
+            name: 'Spending Score Prediction',
+            type: 'regression',
+            algorithm: 'Gradient Boosting',
+            targetColumn: 'spending_score',
+            accuracy: '87.6%',
+            metrics: {
+              rmse: 8.4,
+              r2Score: 0.876,
+              mape: 12.3
+            },
+            modelData: { 
+              trained: true,
+              features: columns.filter(col => col !== 'spending_score'),
+              trainingDate: new Date().toISOString()
+            }
+          });
+
+          console.log("Demo models created successfully");
+        }
+      }
+    } catch (error) {
+      console.log('Demo data initialization failed:', (error as Error).message);
+    }
   }
 }
 

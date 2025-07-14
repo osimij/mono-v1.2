@@ -11,6 +11,7 @@ import * as XLSX from "xlsx";
 import OpenAI from "openai";
 import { generateDataInsights, generateChartRecommendations, generateModelingAdvice } from "./gemini";
 import { DataPreprocessor, type PreprocessingOptions } from "./dataPreprocessor";
+import bcrypt from "bcrypt";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -39,10 +40,8 @@ const openai = process.env.OPENAI_API_KEY ? new OpenAI({
   apiKey: process.env.OPENAI_API_KEY 
 }) : null;
 
-// In-memory user store for authentication  
-const users = new Map();
+// Session management
 const authSessions = new Map<string, { user: any }>();
-const registeredUsers = new Map<string, any>();
 
 // Simple session management
 const generateSessionId = () => Math.random().toString(36).substring(2, 15);
@@ -73,6 +72,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { email, password } = req.body;
       
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+      
+      // Check for admin user (hardcoded)
       if (email === "rumayza.n@gmail.com" && password === "HelloBeautiful1!") {
         const adminUser = {
           id: "admin_1",
@@ -90,17 +94,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
       
-      // Find existing user by email from registeredUsers map
-      const existingUser = Array.from(registeredUsers.values()).find(user => user.email === email);
+      // Find user in database by email
+      const existingUser = await storage.getUserByEmail(email);
       
-      if (existingUser) {
-        const sessionId = generateSessionId();
-        authSessions.set(sessionId, { user: existingUser });
-        res.json({ user: existingUser, sessionId });
+      if (existingUser && existingUser.password) {
+        // Verify password
+        const isValidPassword = await bcrypt.compare(password, existingUser.password);
+        
+        if (isValidPassword) {
+          // Don't send password in response
+          const { password: _, ...userWithoutPassword } = existingUser;
+          
+          const sessionId = generateSessionId();
+          authSessions.set(sessionId, { user: userWithoutPassword });
+          res.json({ user: userWithoutPassword, sessionId });
+        } else {
+          res.status(401).json({ message: "Invalid credentials" });
+        }
       } else {
         res.status(401).json({ message: "Invalid credentials" });
       }
     } catch (error) {
+      console.error("Login error:", error);
       res.status(401).json({ message: "Invalid credentials" });
     }
   });
@@ -109,11 +124,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { email, password, firstName, lastName } = req.body;
       
-      // Check if user already exists
-      const existingUser = Array.from(registeredUsers.values()).find(user => user.email === email);
+      if (!email || !password || !firstName || !lastName) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+      
+      // Check if user already exists in the database
+      const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
         return res.status(400).json({ message: "User already exists" });
       }
+      
+      // Hash password
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
       
       const userId = `user_${Date.now()}`;
       const user = {
@@ -121,18 +144,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email,
         firstName,
         lastName,
+        password: hashedPassword,
         isAdmin: false,
         profileImageUrl: null
       };
       
-      // Store user in registered users map
-      registeredUsers.set(userId, user);
-      
-      const sessionId = generateSessionId();
-      authSessions.set(sessionId, { user });
-      
-      res.json({ user, sessionId });
+      // Insert user into the database
+      try {
+        const createdUser = await storage.createUser(user);
+        
+        // Don't send password in response
+        const { password: _, ...userWithoutPassword } = createdUser;
+        
+        const sessionId = generateSessionId();
+        authSessions.set(sessionId, { user: userWithoutPassword });
+        
+        res.json({ user: userWithoutPassword, sessionId });
+      } catch (dbError) {
+        console.error("Failed to create user in database:", dbError);
+        return res.status(500).json({ message: "Failed to create user in database" });
+      }
     } catch (error) {
+      console.error("Registration error:", error);
       res.status(400).json({ message: "Registration failed" });
     }
   });
@@ -961,7 +994,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let dataset = null;
       if (datasetId) {
+        // Specific dataset requested
         dataset = await storage.getDataset(datasetId);
+      } else {
+        // Auto-select the user's first available dataset
+        const userId = session.userId;
+        const availableDatasets = await storage.getDatasets(userId);
+        
+        if (availableDatasets.length > 0) {
+          dataset = availableDatasets[0]; // Use the first available dataset
+          console.log(`Auto-selected dataset: ${dataset.originalName} for chat session ${sessionId}`);
+        } else if (userId !== "1") {
+          // If authenticated user has no datasets, also check for demo data
+          const demoDatasets = await storage.getDatasets("1");
+          if (demoDatasets.length > 0) {
+            dataset = demoDatasets[0];
+            console.log(`Auto-selected demo dataset: ${dataset.originalName} for chat session ${sessionId}`);
+          }
+        }
       }
 
       // Create user message

@@ -1,9 +1,21 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+// Check if API key is available and initialize
+const apiKey = process.env.GEMINI_API_KEY;
+if (!apiKey) {
+  console.warn('⚠️  GEMINI_API_KEY not found. AI chat features will be disabled.');
+}
+
+const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 export async function generateDataInsights(message: string, dataset: any): Promise<{ content: string; metadata?: any }> {
   try {
+    if (!ai) {
+      return {
+        content: "AI chat is currently unavailable. Please configure the GEMINI_API_KEY environment variable to enable AI features."
+      };
+    }
+
     if (!dataset || !dataset.data || dataset.data.length === 0) {
       return {
         content: "I'd be happy to help analyze your data, but it looks like no dataset is currently selected. Please upload a dataset first and I'll provide detailed insights about your data patterns, trends, and recommendations."
@@ -62,8 +74,9 @@ Please provide a helpful, business-focused response that:
 
 Focus on practical business value and keep responses well-formatted and easy to read.`;
 
+    // Use original API structure with corrected model name
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-1.5-flash",  // Updated model name
       contents: prompt,
     });
 
@@ -80,13 +93,17 @@ Focus on practical business value and keep responses well-formatted and easy to 
   } catch (error) {
     console.error('Gemini API error:', error);
     return {
-      content: "I'm experiencing some technical difficulties analyzing your data. Please try again in a moment, or check if there are any issues with the AI service."
+      content: "I'm experiencing some technical difficulties analyzing your data. The AI service might be temporarily unavailable or there could be an issue with the API configuration."
     };
   }
 }
 
 export async function generateChartRecommendations(dataset: any): Promise<string[]> {
   try {
+    if (!ai) {
+      return ["AI chart recommendations unavailable - configure GEMINI_API_KEY"];
+    }
+
     if (!dataset || !dataset.data || dataset.data.length === 0) {
       return ["Upload a dataset first to get chart recommendations"];
     }
@@ -112,13 +129,13 @@ Provide specific chart suggestions in this format:
 Focus on charts that would provide business insights.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-1.5-flash",  // Updated model name
       contents: prompt,
     });
 
     const suggestions = response.text?.split('\n')
-      .filter(line => line.trim().startsWith('-'))
-      .map(line => line.trim().substring(1).trim()) || [];
+      .filter((line: string) => line.trim().startsWith('-'))
+      .map((line: string) => line.trim().substring(1).trim()) || [];
 
     return suggestions.length > 0 ? suggestions : [
       "Create a bar chart to compare categorical values",
@@ -137,6 +154,10 @@ Focus on charts that would provide business insights.`;
 
 export async function generateModelingAdvice(dataset: any, taskType: string): Promise<string> {
   try {
+    if (!ai) {
+      return "AI modeling advice unavailable. Please configure GEMINI_API_KEY environment variable.";
+    }
+
     if (!dataset || !dataset.data) {
       return "Upload a dataset first to get modeling advice.";
     }
@@ -162,7 +183,7 @@ Give specific advice about:
 Keep it simple and actionable for non-technical users.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-1.5-flash",  // Updated model name
       contents: prompt,
     });
 
