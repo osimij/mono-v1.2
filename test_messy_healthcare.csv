@@ -1,0 +1,16 @@
+patient_id,age,gender,血压,heart_rate,diagnosis,medication,dosage,last_visit,weight_kg,height_cm,outcome
+P001,65,M,140/90,72,hypertension,"ACE inhibitor",10mg,2023-01-15,75.5,175,improved
+P002,,F,,85,diabetes,insulin,,,80.2,160,
+P003,45,male,NORMAL,90,"heart disease",beta-blocker,5 mg,01/20/2023,70.0,170,stable
+P004,NULL,Female,"120/80 mmHg",NULL,"Type 2 Diabetes","Metformin 500mg",500mg,invalid_date,85.7,NULL,worse
+P005,72,M,HIGH,110,stroke,aspirin,100,2023-02-28,68.3,168,recovered
+,35,F,110/70,68,healthy,none,0,2023-03-10,62.1,165,healthy
+P007,28,Non-binary,90/60,55,anemia,iron supplements,65mg,2023-01-05,55.0,158,improving
+P008,fifty-five,M,"very high",快,cancer,chemotherapy,varies,last month,lost weight,tall,critical
+P009,33,F,130/85,78,pregnancy,prenatal vitamins,daily,2023-02-15,70.5,162,normal
+P010,88,M,170/100,45,dementia,donepezil,10,yesterday,60.2,172,declining
+P011,25,female,perfect,athletic heart,migraine,sumatriptan,as needed,2023-01-30,58.9,168,occasional
+P012,0,unknown,unknown,unknown,newborn,none,none,2023-03-01,3.2,50,healthy
+P013,45,M,"","",,,,,,,""
+P014,INVALID,INVALID,INVALID/INVALID,INVALID,INVALID,INVALID,INVALID,INVALID,INVALID,INVALID,INVALID
+P015,   67   ,   F   ,"   150/95   ",   88   ,"   arthritis   ","   ibuprofen   ","   400mg   ","   2023-02-20   ",   72.8   ,   163   ,"   managed   "

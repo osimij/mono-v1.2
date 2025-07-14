@@ -1,0 +1,133 @@
+You are building Mono-AI, a modern no-code AI assistant platform designed specifically for non-technical business owners of small to medium-sized businesses. The goal is to empower users to quickly upload Excel or CSV files and effortlessly analyze, visualize, and model their data using AI—without needing a dedicated data science team.
+
+📌 TECH STACK
+
+Frontend
+
+* Recommended: React + FastAPI (for scalability & flexibility)
+* Alternatively: Streamlit with custom components for rapid prototyping
+
+Backend
+
+* Python (Pandas, Scikit-learn, Prophet, LangChain/OpenLLM)
+* Database: SQLite (simple) or Firebase (real-time sync, authentication)
+
+AI Chatbot
+
+* Qwen-32B model integrated via LangChain/OpenLLM
+* OpenAI-compatible API for future extensibility
+
+Deployment
+
+* Hosted on Replit for ease of demo and sharing
+
+Design
+
+* Minimalist, sleek, intuitive design inspired by Notion, Linear, and Replit
+* Fully responsive (Mobile & Desktop) with modern color palettes (light/dark modes)
+
+🔧 FEATURES & SPECIFICATIONS
+
+1. 🏠 Home (Onboarding Wizard)
+
+* Minimal UI with clearly labeled actionable buttons
+* Step-by-step onboarding:
+
+  1. Upload your Data 📁
+  2. Instant Data Insights 📊
+  3. Create Predictive Models 🤖
+  4. Deploy & Integrate 🌐
+* Tooltips and animated GIF explanations
+* Clearly visible "Try with Demo Data 🪄" button:
+
+  * Loads a sample dataset (sales, customer churn, e-commerce)
+  * Immediately showcases data preprocessing, insights, visualizations, and AI modeling
+
+2. 📈 Data Page (Smart Data Factory)
+
+* Excel & CSV drag-and-drop uploads (with clearly marked size limits)
+* Automatic data type detection (numeric, categorical, datetime)
+* Interactive smart table with filtering, searching, sorting
+* Preprocessing options with intelligent one-click suggestions:
+
+  * Handle missing values (fill or drop)
+  * Encode categorical variables
+  * Scale numeric columns
+* Undo/Redo clearly accessible
+* Column recommendations and clear explanations of preprocessing actions
+
+3. 📊 Analysis Page (Insights & Visualizations)
+
+* Auto-generated statistical summaries (mean, median, distributions)
+* Intuitive drag-and-drop manual chart builder (bar, line, scatter, histogram)
+* "Ask Mono-AI 🔍" button to generate insights using Qwen-32B:
+
+  * Natural language summaries and explanations
+  * Visualization suggestions tailored to the uploaded dataset
+
+4. 🤖 Modeling Page (ML made easy)
+
+* Clear ML task selection: Classification, Regression, Time-Series Forecast
+* Easy target column selection
+* Algorithm recommendations with concise explanations ("Ideal for predicting churn")
+* Live visual feedback on metrics and visualizations (ROC curves, residual plots, forecast charts)
+* Export trained models (.pkl or .onnx) or immediate deployment
+
+5. 💬 AI Assistant Page (Data Chatbot powered by Qwen-32B)
+
+* User-friendly chat interface for intuitive data interaction:
+
+  * Queries such as “Summarize last quarter sales” or “Explain relationship between columns”
+* Quick action buttons:
+
+  * "Plot this result"
+  * "Build a predictive model"
+* Voice input capability as an optional feature
+
+6. 👤 Profile Page
+
+* Tabs for organized storage:
+
+  * Saved Models (View, Download, Delete)
+  * Chat History (searchable and timestamped)
+  * Dataset History (upload dates, processing steps, downloads)
+
+7. ⚙️ Settings Page
+
+* Theme toggle (dark/light modes)
+* Data reset functionality with confirmation prompts
+* API key management with clear setup instructions
+* Google Sheets integration setup
+* Export logs feature for troubleshooting and user analytics
+
+⚠️ UX PRIORITIES
+
+* Friendly and clear error handling
+* Informative empty states guiding users on next actions
+* Visually appealing progress loaders and animations
+* Explanations provided at every step
+
+🎯 STRETCH GOALS
+
+* Voice input for AI assistant 🎙️
+* Shareable dashboards for easy sharing and collaboration
+* Automatic data cleaning using great\_expectations or ydata-profiling
+
+🎨 UI STYLE INSPIRATION
+
+* Clean, Modern (Notion, Linear, Framer)
+* Friendly, Professional (Headspace, Replit)
+* Minimal yet expressive visuals
+
+📱 RESPONSIVENESS
+
+* Fully optimized and simplified for mobile/tablet views
+
+📝 DOCUMENTATION & COMMENTS
+
+* Code must be clearly commented for easy future modifications
+* Quick-start guides embedded in-app through onboarding wizard
+
+✨ END GOAL
+
+* A visually appealing, intuitive MVP built on Replit, ready to demonstrate to SMEs, investors, and end-users, robust enough for immediate customer onboarding and demonstration.
