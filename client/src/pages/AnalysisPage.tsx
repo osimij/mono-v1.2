@@ -536,7 +536,6 @@ export function AnalysisPage() {
     return (
       <div className="p-6">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Analysis & Insights</h1>
           <p className="text-gray-600 dark:text-gray-300">Loading datasets...</p>
         </div>
       </div>
@@ -547,8 +546,6 @@ export function AnalysisPage() {
     <div className="p-6">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Analysis & Insights</h1>
-          <p className="text-gray-600 dark:text-gray-300">Create custom visualizations and discover insights</p>
         </div>
 
         {/* Dataset Selection */}

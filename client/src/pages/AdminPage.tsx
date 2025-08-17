@@ -143,12 +143,6 @@ export function AdminPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                Admin Dashboard
-              </h1>
-              <p className="text-gray-600 dark:text-gray-300">
-                Monitor platform performance and user analytics
-              </p>
             </div>
             <div className="flex items-center space-x-3">
               <select

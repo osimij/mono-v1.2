@@ -6,8 +6,6 @@ import {
   TrendingUp, 
   Bot, 
   MessageSquare, 
-  User, 
-  Settings,
   Brain
 } from "lucide-react";
 
@@ -22,8 +20,6 @@ const navigation = [
   { name: "Analysis", href: "/analysis", icon: TrendingUp },
   { name: "ML Modeling", href: "/modeling", icon: Bot },
   { name: "AI Assistant", href: "/assistant", icon: MessageSquare },
-  { name: "Profile", href: "/profile", icon: User },
-  { name: "Settings", href: "/settings", icon: Settings },
 ];
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
@@ -45,13 +41,18 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
         {/* Logo */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center space-x-3">
+        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-gray-700">
+          <a 
+            href="https://monotech-xzp1.onrender.com/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center space-x-3 hover:opacity-80 transition-opacity cursor-pointer"
+          >
             <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center">
               <Brain className="w-4 h-4 text-white" />
             </div>
             <span className="font-bold text-xl text-gray-900 dark:text-white">Mono-AI</span>
-          </div>
+          </a>
           <button 
             onClick={onClose}
             className="lg:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"

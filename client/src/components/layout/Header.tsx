@@ -9,16 +9,26 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu, Moon, Sun, LogOut, Shield, User, Settings } from "lucide-react";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Menu, Moon, Sun, LogOut, Shield, User, Settings, Sparkles, Brain } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
 
 interface HeaderProps {
   onMenuToggle: () => void;
+  title?: string;
+  description?: string;
+  isProMode?: boolean;
+  onModeToggle?: () => void;
 }
 
-export function Header({ onMenuToggle }: HeaderProps) {
+export function Header({ onMenuToggle, title, description, isProMode, onModeToggle }: HeaderProps) {
   const { theme, setTheme } = useTheme();
   const { user, logout, isLogoutLoading } = useAuth();
 
@@ -32,17 +42,40 @@ export function Header({ onMenuToggle }: HeaderProps) {
 
   return (
     <header className="fixed top-0 left-0 lg:left-64 right-0 h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 z-30">
-      <div className="flex items-center justify-between h-full px-6">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="lg:hidden"
-          onClick={onMenuToggle}
-        >
-          <Menu className="h-5 w-5" />
-        </Button>
+      <div className="h-full px-6" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0px' }}>
+        {/* Left section - Menu button and title */}
+        <div className="flex items-center space-x-4 h-full">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
+            onClick={onMenuToggle}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          
+          {title && (
+            <div className="flex items-center space-x-3 hidden sm:flex h-full">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <h1 className="text-xl font-semibold text-gray-900 dark:text-white cursor-help">
+                      {title}
+                    </h1>
+                  </TooltipTrigger>
+                  {description && (
+                    <TooltipContent side="right" className="max-w-xs">
+                      <p className="text-sm">{description}</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          )}
+        </div>
         
-        <div className="flex items-center space-x-4">
+        {/* Right section - Theme, mode toggle, and profile */}
+        <div className="flex items-center justify-end space-x-4 h-full">
           <Button
             variant="ghost"
             size="icon"
@@ -52,6 +85,31 @@ export function Header({ onMenuToggle }: HeaderProps) {
             <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             <span className="sr-only">Toggle theme</span>
           </Button>
+
+          {onModeToggle && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={onModeToggle}
+                    className="relative"
+                  >
+                    {isProMode ? (
+                      <Sparkles className="h-5 w-5 text-orange-600" />
+                    ) : (
+                      <Brain className="h-5 w-5 text-blue-600" />
+                    )}
+                    <span className="sr-only">Toggle mode</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Switch to {isProMode ? "Light" : "Pro"} Mode</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
 
           {!user ? (
             // Not logged in - show login buttons

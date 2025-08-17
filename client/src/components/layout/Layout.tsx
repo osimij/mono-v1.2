@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { OnboardingTour } from "../OnboardingTour";
+import { useMode } from "@/hooks/useMode";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,7 +12,8 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
-  const [, navigate] = useLocation();
+  const { isProMode, toggleMode } = useMode();
+  const [location, navigate] = useLocation();
 
   useEffect(() => {
     // Check if user has completed the tour
@@ -34,13 +36,66 @@ export function Layout({ children }: LayoutProps) {
     navigate(path);
   };
 
+  // Get page title and description based on current route
+  const getPageInfo = (path: string): { title?: string; description?: string } => {
+    switch (path) {
+      case '/':
+        return { title: 'Home' };
+      case '/data':
+        return { 
+          title: 'Data Factory',
+          description: 'Upload and prepare your data for analysis'
+        };
+      case '/modeling':
+        return { 
+          title: 'AI Modeling',
+          description: 'Build predictive models with one-click training'
+        };
+      case '/analysis':
+        return { 
+          title: 'Analysis',
+          description: 'Create custom visualizations and discover insights'
+        };
+      case '/assistant':
+        return { 
+          title: 'AI Assistant',
+          description: 'Chat with your data and get intelligent insights'
+        };
+      case '/settings':
+        return { 
+          title: 'Settings',
+          description: 'Configure your preferences and manage your data'
+        };
+      case '/profile':
+        return { 
+          title: 'Profile',
+          description: 'Manage your models, datasets, and chat history'
+        };
+      case '/admin':
+        return { 
+          title: 'Admin Panel',
+          description: 'Monitor platform performance and user analytics'
+        };
+      default:
+        return {};
+    }
+  };
+
+  const pageInfo = getPageInfo(location);
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Sidebar 
         isOpen={sidebarOpen} 
         onClose={() => setSidebarOpen(false)} 
       />
-      <Header onMenuToggle={() => setSidebarOpen(true)} />
+      <Header 
+        onMenuToggle={() => setSidebarOpen(true)} 
+        title={pageInfo.title}
+        description={pageInfo.description}
+        isProMode={isProMode}
+        onModeToggle={toggleMode}
+      />
       
       <main className="lg:ml-64 pt-16 min-h-screen">
         {children}

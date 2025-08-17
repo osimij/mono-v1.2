@@ -320,8 +320,6 @@ export function DataPage() {
     <div className="p-6">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Data Factory</h1>
-          <p className="text-gray-600 dark:text-gray-300">Upload and prepare your data for analysis</p>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -335,7 +333,7 @@ export function DataPage() {
 
           <TabsContent value="upload" className="space-y-6">
             <div className="grid lg:grid-cols-3 gap-6">
-          {/* Upload and Preview */}
+          {/* Upload Section */}
           <div className="lg:col-span-2 space-y-6">
             {/* Upload Section */}
             <Card>
@@ -419,28 +417,6 @@ export function DataPage() {
               </Card>
             )}
 
-            {/* Data Preview */}
-            {selectedDataset && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Data Preview</CardTitle>
-                    <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
-                      <span>{selectedDataset.rowCount.toLocaleString()} rows</span>
-                      <span>•</span>
-                      <span>{selectedDataset.columns.length} columns</span>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <DataTable 
-                    data={selectedDataset.data}
-                    columns={selectedDataset.columns}
-                    pageSize={5}
-                  />
-                </CardContent>
-              </Card>
-            )}
           </div>
 
           {/* Sidebar */}
@@ -553,6 +529,29 @@ export function DataPage() {
             )}
           </div>
         </div>
+
+        {/* Data Preview - Full Width */}
+        {selectedDataset && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Data Preview</CardTitle>
+                <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+                  <span>{selectedDataset.rowCount.toLocaleString()} rows</span>
+                  <span>•</span>
+                  <span>{selectedDataset.columns.length} columns</span>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <DataTable 
+                data={selectedDataset.data}
+                columns={selectedDataset.columns}
+                pageSize={10}
+              />
+            </CardContent>
+          </Card>
+        )}
           </TabsContent>
 
           <TabsContent value="preprocess" className="space-y-6">
