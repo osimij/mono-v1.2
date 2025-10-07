@@ -23,6 +23,7 @@ export function DataPage() {
   const [pendingPreprocessedData, setPendingPreprocessedData] = useState<any>(null);
   const [pendingPreprocessedOptions, setPendingPreprocessedOptions] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("upload");
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -236,6 +237,8 @@ export function DataPage() {
     setSelectedDataset(dataset);
     // If we're on the preprocess tab, the DataPreprocessor will use this dataset
   };
+
+
 
   const getDataQuality = (dataset: Dataset) => {
     if (!dataset.data || !Array.isArray(dataset.data)) {
@@ -534,14 +537,14 @@ export function DataPage() {
         {selectedDataset && (
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Data Preview</CardTitle>
-                <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
-                  <span>{selectedDataset.rowCount.toLocaleString()} rows</span>
-                  <span>•</span>
-                  <span>{selectedDataset.columns.length} columns</span>
-                </div>
-              </div>
+                                <div className="flex items-center justify-between">
+                    <CardTitle>Data Preview</CardTitle>
+                    <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+                      <span>{selectedDataset.rowCount.toLocaleString()} rows</span>
+                      <span>•</span>
+                      <span>{selectedDataset.columns.length} columns</span>
+                    </div>
+                  </div>
             </CardHeader>
             <CardContent>
               <DataTable 
@@ -558,7 +561,7 @@ export function DataPage() {
             <DataPreprocessor 
               onComplete={handlePreprocessorComplete}
               datasets={datasets}
-              initialDataset={selectedDataset}
+              initialDataset={selectedDataset || undefined}
             />
           </TabsContent>
         </Tabs>

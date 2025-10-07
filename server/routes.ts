@@ -47,6 +47,12 @@ const authSessions = new Map<string, { user: any }>();
 const generateSessionId = () => Math.random().toString(36).substring(2, 15);
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Basic request correlation id for logging
+  app.use((req: any, _res, next) => {
+    req.requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    console.log(`[upload] reqId=${req.requestId} ${req.method} ${req.path}`);
+    next();
+  });
   // Simple authentication middleware
   const requireAuth = (req: any, res: any, next: any) => {
     const sessionId = req.headers.authorization?.replace('Bearer ', '');
@@ -331,8 +337,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           columns: ['customer_id', 'age', 'gender', 'annual_income', 'spending_score', 'membership_years', 'total_purchases', 'avg_order_value', 'last_purchase_days', 'product_category', 'satisfaction_rating', 'support_tickets', 'marketing_emails_opened', 'social_media_engagement', 'mobile_app_usage', 'website_visits_monthly', 'referral_count', 'seasonal_shopper', 'premium_member', 'churn_risk'],
           rowCount: 50,
           fileSize: 12500,
-          uploadedAt: new Date('2024-01-15'),
-          data: [] // Data will be loaded when needed for analysis
+          uploadedAt: new Date('2024-01-15')
+          // Note: data field is excluded for performance
         };
         
         console.log("Using reliable demo data fallback");
@@ -347,17 +353,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Upload and process dataset with comprehensive preprocessing
   app.post("/api/datasets", upload.single('file'), async (req: any, res) => {
     try {
-      console.log("Upload request received:");
-      console.log("- Headers:", req.headers);
-      console.log("- Body keys:", Object.keys(req.body || {}));
-      console.log("- File:", req.file ? {
-        originalname: req.file.originalname,
-        mimetype: req.file.mimetype,
-        size: req.file.size
-      } : "No file");
+      console.log(`[upload] reqId=${req.requestId} received`);
+      console.log(`[upload] reqId=${req.requestId} headers: content-type=${req.headers["content-type"]}`);
+      console.log(`[upload] reqId=${req.requestId} bodyKeys: ${Object.keys(req.body || {}).join(',')}`);
+      console.log(`[upload] reqId=${req.requestId} file: ${req.file ? `${req.file.originalname} (${req.file.mimetype}, ${req.file.size} bytes)` : "<none>"}`);
       
       if (!req.file) {
-        console.log("No file found in request");
+        console.log(`[upload] reqId=${req.requestId} no file provided`);
         return res.status(400).json({ error: "No file uploaded" });
       }
 
@@ -366,7 +368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const session = authSessions.get(sessionId);
       
       if (!session) {
-        console.log("Upload attempt without authentication - rejecting");
+        console.log(`[upload] reqId=${req.requestId} unauthenticated upload attempt`);
         return res.status(401).json({ error: "Authentication required for file uploads" });
       }
       
@@ -475,7 +477,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           
         } catch (error) {
-          console.error("Excel parsing error:", error);
+          console.error(`[upload] reqId=${req.requestId} excel parsing error:`, error);
           return res.status(400).json({ error: "Failed to parse Excel file" });
         }
       } else {
@@ -496,15 +498,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertDatasetSchema.parse(datasetData);
       const dataset = await storage.createDataset(validatedData);
 
-      console.log("Dataset created successfully:", {
-        id: dataset.id,
-        userId: dataset.userId,
-        originalName: dataset.originalName
-      });
+      console.log(`[upload] reqId=${req.requestId} dataset created id=${dataset.id} userId=${dataset.userId} name=${dataset.originalName} rows=${dataset.rowCount} cols=${dataset.columns.length}`);
 
       res.json(dataset);
     } catch (error) {
-      console.error("Dataset upload error:", error);
+      const err: any = error;
+      console.error(`[upload] reqId=${(err && err.requestId) || (typeof err === 'object' ? req.requestId : req.requestId)} error:`, err);
+      if (err && err.name === 'ZodError') {
+        return res.status(400).json({ error: "Validation error", details: err.errors || [] });
+      }
       res.status(500).json({ error: "Failed to upload dataset" });
     }
   });
@@ -555,7 +557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
     } catch (error) {
-      console.error("Preprocessing error:", error);
+      console.error(`[upload] reqId=${(req as any).requestId} preprocessing error:`, error);
       res.status(500).json({ error: "Failed to preprocess data" });
     }
   });
@@ -1132,6 +1134,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+
+  // Multer and generic error handler (must be after routes)
+  app.use((err: any, _req: any, res: any, _next: any) => {
+    if (err && (err.name === 'MulterError' || err.code === 'LIMIT_FILE_SIZE')) {
+      const message = err.code === 'LIMIT_FILE_SIZE'
+        ? 'File too large. Max 50MB.'
+        : err.message || 'Upload failed';
+      console.error(`[upload] multer error:`, err);
+      return res.status(400).json({ error: message });
+    }
+    if (err && err.message === 'Only CSV and Excel files are allowed') {
+      console.error(`[upload] invalid file type:`, err);
+      return res.status(400).json({ error: 'Only CSV and Excel files are allowed' });
+    }
+    console.error(`[server] unhandled error:`, err);
+    return res.status(500).json({ error: 'Internal server error' });
+  });
+
   return httpServer;
 }
 

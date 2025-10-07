@@ -24,13 +24,16 @@ export function DataTable({ data, columns, pageSize = 10 }: DataTableProps) {
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
+  // Ensure data is always an array
+  const safeData = data || [];
+
   // Filter and sort data
   const filteredAndSortedData = useMemo(() => {
-    let filtered = data;
+    let filtered = safeData;
 
     // Apply search filter
     if (searchTerm) {
-      filtered = data.filter(row =>
+      filtered = safeData.filter(row =>
         Object.values(row).some(value =>
           String(value).toLowerCase().includes(searchTerm.toLowerCase())
         )
@@ -67,9 +70,9 @@ export function DataTable({ data, columns, pageSize = 10 }: DataTableProps) {
   };
 
   const getColumnType = (column: string): string => {
-    if (data.length === 0) return 'text';
+    if (safeData.length === 0) return 'text';
     
-    const sample = data.find(row => row[column] !== null && row[column] !== undefined)?.[column];
+    const sample = safeData.find(row => row[column] !== null && row[column] !== undefined)?.[column];
     if (typeof sample === 'number') return 'number';
     if (typeof sample === 'boolean') return 'boolean';
     if (sample instanceof Date || isDateString(sample)) return 'date';
@@ -99,7 +102,12 @@ export function DataTable({ data, columns, pageSize = 10 }: DataTableProps) {
     return String(value);
   };
 
-  const getTypeColor = (type: string): string => {
+  const getTypeColor = (type: string, column: string): string => {
+    // Check if it's a segmentation column
+    if (column.endsWith('_cluster')) {
+      return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-300';
+    }
+    
     switch (type) {
       case 'number': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300';
       case 'date': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300';
@@ -145,9 +153,9 @@ export function DataTable({ data, columns, pageSize = 10 }: DataTableProps) {
                       <span>{column}</span>
                       <Badge 
                         variant="secondary" 
-                        className={`text-xs ${getTypeColor(type)}`}
+                        className={`text-xs ${getTypeColor(type, column)}`}
                       >
-                        {type}
+                        {column.endsWith('_cluster') ? 'segment' : type}
                       </Badge>
                       {sortColumn === column && (
                         <span className="text-xs">
@@ -165,7 +173,13 @@ export function DataTable({ data, columns, pageSize = 10 }: DataTableProps) {
               <TableRow key={index}>
                 {columns.map((column) => (
                   <TableCell key={column}>
-                    {formatCellValue(row[column], column)}
+                    {column.endsWith('_cluster') ? (
+                      <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800">
+                        {formatCellValue(row[column], column)}
+                      </Badge>
+                    ) : (
+                      formatCellValue(row[column], column)
+                    )}
                   </TableCell>
                 ))}
               </TableRow>

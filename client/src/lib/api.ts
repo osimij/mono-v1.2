@@ -33,7 +33,15 @@ export const api = {
       });
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        let message = `Upload failed (${response.status})`;
+        try {
+          const err = await response.json();
+          if (err?.error) message = err.error;
+          if (err?.details && Array.isArray(err.details)) {
+            message = `${message}: ${err.details.join(', ')}`;
+          }
+        } catch {}
+        throw new Error(message);
       }
       
       return response.json();

@@ -11,6 +11,7 @@ import { ModeProvider } from "@/hooks/useMode";
 // Pages
 import { HomePage } from "@/pages/HomePage";
 import { DataPage } from "@/pages/DataPage";
+import { SegmentationPage } from "@/pages/SegmentationPage";
 import { AnalysisPage } from "@/pages/AnalysisPage";
 import { ModelingPage } from "@/pages/ModelingPage";
 import { AssistantPage } from "@/pages/AssistantPage";
@@ -21,6 +22,36 @@ import { AdminPage } from "@/pages/AdminPage";
 import { AdminLoginPage } from "@/pages/AdminLoginPage";
 import NotFound from "@/pages/not-found";
 
+// Subsection Pages
+import { DataUploadPage } from "@/pages/DataUploadPage";
+import { DataPreviewPage } from "@/pages/DataPreviewPage";
+import { DataCleaningPage } from "@/pages/DataCleaningPage";
+import { SegmentationCustomersPage } from "@/pages/SegmentationCustomersPage";
+import { DataFilteringPage } from "@/pages/DataFilteringPage";
+import { AnalysisOverviewPage } from "@/pages/AnalysisOverviewPage";
+import { PlaceholderPage } from "@/pages/PlaceholderPage";
+
+// Icons for placeholder pages
+import { 
+  DatabaseZap, 
+  Shield, 
+  FileSearch, 
+  Layers, 
+  Star, 
+  TrendingUp, 
+  ScatterChart, 
+  PieChart as PieChartIcon, 
+  Map, 
+  FileText,
+  Cpu,
+  Zap,
+  BarChart,
+  BrainCircuit,
+  Rocket,
+  Activity,
+  Code
+} from "lucide-react";
+
 function PublicRouter() {
   const { user, login, register, isAuthenticated } = useAuth();
   
@@ -28,10 +59,70 @@ function PublicRouter() {
     <Layout>
       <Switch>
         <Route path="/" component={HomePage} />
+        
+        {/* Data Factory Routes */}
         <Route path="/data" component={DataPage} />
+        <Route path="/data/upload" component={DataUploadPage} />
+        <Route path="/data/preview" component={DataPreviewPage} />
+        <Route path="/data/cleaning" component={DataCleaningPage} />
+        <Route path="/data/validation">
+          {() => <PlaceholderPage title="Data Validation" description="Validate data quality" icon={Shield} parentPath="/data" />}
+        </Route>
+        
+        {/* Segmentation & Filtering Routes */}
+        <Route path="/segmentation" component={SegmentationPage} />
+        <Route path="/segmentation/customers" component={SegmentationCustomersPage} />
+        <Route path="/segmentation/filtering" component={DataFilteringPage} />
+        <Route path="/segmentation/advanced">
+          {() => <PlaceholderPage title="Advanced Filters" description="Complex filtering rules" icon={Layers} parentPath="/segmentation" />}
+        </Route>
+        <Route path="/segmentation/templates">
+          {() => <PlaceholderPage title="Filter Templates" description="Save and reuse filters" icon={Star} parentPath="/segmentation" />}
+        </Route>
+        
+        {/* Analysis Routes */}
         <Route path="/analysis" component={AnalysisPage} />
+        <Route path="/analysis/overview" component={AnalysisOverviewPage} />
+        <Route path="/analysis/trends">
+          {() => <PlaceholderPage title="Trend Analysis" description="Time-based analysis" icon={TrendingUp} parentPath="/analysis" />}
+        </Route>
+        <Route path="/analysis/correlation">
+          {() => <PlaceholderPage title="Correlation Analysis" description="Find relationships" icon={ScatterChart} parentPath="/analysis" />}
+        </Route>
+        <Route path="/analysis/distribution">
+          {() => <PlaceholderPage title="Distribution Analysis" description="Data distributions" icon={PieChartIcon} parentPath="/analysis" />}
+        </Route>
+        <Route path="/analysis/geographic">
+          {() => <PlaceholderPage title="Geographic Analysis" description="Location-based insights" icon={Map} parentPath="/analysis" />}
+        </Route>
+        <Route path="/analysis/reports">
+          {() => <PlaceholderPage title="Custom Reports" description="Create custom reports" icon={FileText} parentPath="/analysis" />}
+        </Route>
+        
+        {/* ML Modeling Routes */}
         <Route path="/modeling" component={ModelingPage} />
+        <Route path="/modeling/builder">
+          {() => <PlaceholderPage title="Model Builder" description="Build ML models" icon={Cpu} parentPath="/modeling" />}
+        </Route>
+        <Route path="/modeling/auto">
+          {() => <PlaceholderPage title="Auto ML" description="Automated model training" icon={Zap} parentPath="/modeling" />}
+        </Route>
+        <Route path="/modeling/compare">
+          {() => <PlaceholderPage title="Model Comparison" description="Compare model performance" icon={BarChart} parentPath="/modeling" />}
+        </Route>
+        <Route path="/modeling/features">
+          {() => <PlaceholderPage title="Feature Engineering" description="Create new features" icon={BrainCircuit} parentPath="/modeling" />}
+        </Route>
+        <Route path="/modeling/deploy">
+          {() => <PlaceholderPage title="Model Deployment" description="Deploy your models" icon={Rocket} parentPath="/modeling" />}
+        </Route>
+        <Route path="/modeling/monitor">
+          {() => <PlaceholderPage title="Model Monitoring" description="Monitor model performance" icon={Activity} parentPath="/modeling" />}
+        </Route>
+        
+        {/* AI Assistant Routes */}
         <Route path="/assistant" component={AssistantPage} />
+        
         <Route path="/profile" component={ProfilePage} />
         <Route path="/settings" component={SettingsPage} />
         <Route path="/login">

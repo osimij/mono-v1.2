@@ -338,7 +338,22 @@ class DatabaseStorage implements IStorage {
   }
 
   async getDatasets(userId: string): Promise<Dataset[]> {
-    return await db.select().from(datasets).where(eq(datasets.userId, userId));
+    // Only select metadata fields, exclude the data field for performance
+    const results = await db
+      .select({
+        id: datasets.id,
+        userId: datasets.userId,
+        filename: datasets.filename,
+        originalName: datasets.originalName,
+        columns: datasets.columns,
+        rowCount: datasets.rowCount,
+        fileSize: datasets.fileSize,
+        uploadedAt: datasets.uploadedAt
+      })
+      .from(datasets)
+      .where(eq(datasets.userId, userId));
+    
+    return results;
   }
 
   async getDataset(id: number): Promise<Dataset | undefined> {
