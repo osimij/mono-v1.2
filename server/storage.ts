@@ -3,6 +3,7 @@ import {
   datasets, 
   models, 
   chatSessions,
+  dashboardConfigs,
   type User, 
   type InsertUser,
   type UpsertUser,
@@ -13,6 +14,9 @@ import {
   type ChatSession,
   type InsertChatSession
 } from "@shared/schema";
+
+// Re-export tables for use in routes
+export { users, datasets, models, chatSessions, dashboardConfigs };
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 import * as fs from 'fs';

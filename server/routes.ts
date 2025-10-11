@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { requireAuth as authRequireAuth, requireAdmin as authRequireAdmin } from "./auth";
 import { sql } from "drizzle-orm";
-import { insertDatasetSchema, insertModelSchema, insertChatSessionSchema, type ChatMessage } from "@shared/schema";
+import { insertDatasetSchema, insertModelSchema, insertChatSessionSchema, dashboardConfigs, type ChatMessage } from "@shared/schema";
 import multer from "multer";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
@@ -708,6 +708,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Analysis error:", error);
       res.status(500).json({ error: "Failed to analyze dataset" });
+    }
+  });
+
+  // Dashboard configuration routes
+  
+  // Get dashboard config for a dataset
+  app.get("/api/dashboards/:datasetId", async (req: any, res) => {
+    try {
+      const datasetId = parseInt(req.params.datasetId);
+      const sessionId = req.headers.authorization?.replace('Bearer ', '');
+      const session = authSessions.get(sessionId);
+      const userId = session?.user?.id || "1"; // Default to demo user
+      
+      const result = await db
+        .select()
+        .from(dashboardConfigs)
+        .where(sql`${dashboardConfigs.datasetId} = ${datasetId} AND ${dashboardConfigs.userId} = ${userId}`)
+        .limit(1);
+      
+      if (result.length > 0) {
+        res.json(result[0]);
+      } else {
+        // Return default empty config
+        res.json({
+          id: null,
+          userId,
+          datasetId,
+          name: "My Dashboard",
+          metrics: [],
+          charts: []
+        });
+      }
+    } catch (error) {
+      console.error("Failed to fetch dashboard config:", error);
+      res.status(500).json({ error: "Failed to fetch dashboard configuration" });
+    }
+  });
+  
+  // Create or update dashboard config
+  app.post("/api/dashboards", async (req: any, res) => {
+    try {
+      const sessionId = req.headers.authorization?.replace('Bearer ', '');
+      const session = authSessions.get(sessionId);
+      const userId = session?.user?.id || "1";
+      
+      const { id, datasetId, name, metrics, charts } = req.body;
+      
+      if (id) {
+        // Update existing
+        const result = await db
+          .update(dashboardConfigs)
+          .set({
+            name,
+            metrics,
+            charts,
+            updatedAt: new Date()
+          })
+          .where(sql`${dashboardConfigs.id} = ${id}`)
+          .returning();
+        
+        res.json(result[0]);
+      } else {
+        // Create new
+        const result = await db
+          .insert(dashboardConfigs)
+          .values({
+            userId,
+            datasetId,
+            name,
+            metrics,
+            charts
+          })
+          .returning();
+        
+        res.json(result[0]);
+      }
+    } catch (error) {
+      console.error("Failed to save dashboard config:", error);
+      res.status(500).json({ error: "Failed to save dashboard configuration" });
+    }
+  });
+  
+  // Delete dashboard config
+  app.delete("/api/dashboards/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await db
+        .delete(dashboardConfigs)
+        .where(sql`${dashboardConfigs.id} = ${id}`);
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete dashboard config:", error);
+      res.status(500).json({ error: "Failed to delete dashboard configuration" });
     }
   });
 

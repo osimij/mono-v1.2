@@ -146,3 +146,63 @@ export interface FeatureImportance {
   feature: string;
   importance: number;
 }
+
+// Dashboard configuration types
+export interface DashboardMetricCard {
+  id: string;
+  title: string;
+  column: string;
+  calculation: 'sum' | 'average' | 'count' | 'max' | 'min' | 'median' | 'distinct_count';
+  format?: 'number' | 'currency' | 'percentage';
+  icon?: string;
+  color?: string;
+  showChange?: boolean;
+  comparisonColumn?: string;
+  comparisonValue?: number;
+}
+
+export interface DashboardChart {
+  id: string;
+  title: string;
+  description?: string;
+  chartType: 'line' | 'bar' | 'pie' | 'area' | 'scatter' | 'horizontal_bar';
+  size?: 'small' | 'medium' | 'large';
+  xAxis: string;
+  yAxis: string | string[]; // Support single or multiple Y-axis columns
+  aggregation?: 'sum' | 'average' | 'count' | 'max' | 'min';
+  groupBy?: string;
+  filterColumn?: string;
+  filterValue?: string;
+}
+
+export interface DashboardConfig {
+  id: number;
+  userId: string;
+  datasetId: number;
+  name: string;
+  metrics: DashboardMetricCard[];
+  charts: DashboardChart[];
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+// Dashboard configuration table
+export const dashboardConfigs = pgTable("dashboard_configs", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id),
+  datasetId: integer("dataset_id").references(() => datasets.id),
+  name: text("name").notNull().default("My Dashboard"),
+  metrics: jsonb("metrics").notNull().default([]),
+  charts: jsonb("charts").notNull().default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertDashboardConfigSchema = createInsertSchema(dashboardConfigs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type DashboardConfigRecord = typeof dashboardConfigs.$inferSelect;
+export type InsertDashboardConfig = z.infer<typeof insertDashboardConfigSchema>;

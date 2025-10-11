@@ -14,6 +14,7 @@ export function Layout({ children }: LayoutProps) {
   const [tourOpen, setTourOpen] = useState(false);
   const { isProMode, toggleMode } = useMode();
   const [location, navigate] = useLocation();
+  const [sidebarWidth, setSidebarWidth] = useState(260);
 
   useEffect(() => {
     // Check if user has completed the tour
@@ -224,11 +225,17 @@ export function Layout({ children }: LayoutProps) {
 
   const pageInfo = getPageInfo(location);
 
+  useEffect(() => {
+    document.documentElement.style.setProperty("--sidebar-width", `${sidebarWidth}px`);
+  }, [sidebarWidth]);
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Sidebar 
         isOpen={sidebarOpen} 
         onClose={() => setSidebarOpen(false)} 
+        width={sidebarWidth}
+        onWidthChange={setSidebarWidth}
       />
       <Header 
         onMenuToggle={() => setSidebarOpen(true)} 
@@ -238,7 +245,7 @@ export function Layout({ children }: LayoutProps) {
         onModeToggle={toggleMode}
       />
       
-      <main className="lg:ml-64 pt-16 min-h-screen">
+      <main className="pt-16 min-h-screen transition-[margin-left] duration-200 lg-ml-sidebar">
         {children}
       </main>
 

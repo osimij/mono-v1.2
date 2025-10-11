@@ -260,17 +260,17 @@ export function DataPreviewPage() {
         </div>
       </div>
 
-      {/* Top: Search + Filters */}
-      <Card>
+      {/* Top: Search + Filters - X Analytics inspired */}
+      <Card className="border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm">
         <CardContent className="p-4">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div className="relative w-full md:max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input placeholder="Search datasets..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
+              <Input placeholder="Search datasets..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 rounded-lg" />
             </div>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v)}>
-                <SelectTrigger className="w-[140px]"><SelectValue placeholder="Type" /></SelectTrigger>
+                <SelectTrigger className="w-[140px] rounded-full h-8 text-sm"><SelectValue placeholder="Type" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All types</SelectItem>
                   <SelectItem value="csv">CSV</SelectItem>
@@ -280,7 +280,7 @@ export function DataPreviewPage() {
                 </SelectContent>
               </Select>
               <Select value={sizeFilter} onValueChange={(v) => setSizeFilter(v)}>
-                <SelectTrigger className="w-[160px]"><SelectValue placeholder="Size" /></SelectTrigger>
+                <SelectTrigger className="w-[160px] rounded-full h-8 text-sm"><SelectValue placeholder="Size" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All sizes</SelectItem>
                   <SelectItem value="small">Small (&lt; 10k rows)</SelectItem>
@@ -289,7 +289,7 @@ export function DataPreviewPage() {
                 </SelectContent>
               </Select>
               <Select value={dateFilter} onValueChange={(v) => setDateFilter(v)}>
-                <SelectTrigger className="w-[160px]"><SelectValue placeholder="Date" /></SelectTrigger>
+                <SelectTrigger className="w-[160px] rounded-full h-8 text-sm"><SelectValue placeholder="Date" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Any time</SelectItem>
                   <SelectItem value="7">Last 7 days</SelectItem>
@@ -305,10 +305,10 @@ export function DataPreviewPage() {
       {/* Main 2-pane layout with fixed height (~70% viewport) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 h-[70vh]">
         {/* Left Sidebar: Flat dataset list */}
-        <Card className="lg:col-span-4 h-full flex flex-col min-h-0">
-          <CardHeader className="pb-2 px-3">
-            <CardTitle className="text-base">Datasets</CardTitle>
-            <CardDescription>{isLoading ? 'Loading...' : `${filteredDatasets.length} item${filteredDatasets.length !== 1 ? 's' : ''}`}</CardDescription>
+        <Card className="lg:col-span-4 h-full flex flex-col min-h-0 border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm">
+          <CardHeader className="pb-2 px-4">
+            <CardTitle className="text-base font-medium text-gray-900 dark:text-gray-100">Datasets</CardTitle>
+            <CardDescription className="text-sm text-gray-600 dark:text-gray-400">{isLoading ? 'Loading...' : `${filteredDatasets.length} item${filteredDatasets.length !== 1 ? 's' : ''}`}</CardDescription>
           </CardHeader>
           <CardContent className="p-0 h-full flex flex-col min-h-0">
             {isLoading ? (
@@ -351,7 +351,16 @@ export function DataPreviewPage() {
                         <td className="p-2.5 align-middle border-r border-gray-100 dark:border-gray-800">{formatFileSize(d.fileSize)}</td>
                         <td className="p-2.5 align-middle border-r border-gray-100 dark:border-gray-800">{formatDate(d.uploadedAt)}</td>
                         <td className="p-2.5 align-middle">
-                          <Button variant={pinnedIds.includes(d.id) ? 'default' : 'outline'} size="sm" onClick={() => togglePin(d.id)}>
+                          <Button 
+                            variant={pinnedIds.includes(d.id) ? 'default' : 'outline'} 
+                            size="sm" 
+                            className="rounded-full h-7 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              togglePin(d.id);
+                            }}
+                          >
+                            {pinnedIds.includes(d.id) ? <Pin className="h-3 w-3 mr-1" /> : <PinOff className="h-3 w-3 mr-1" />}
                             {pinnedIds.includes(d.id) ? 'Pinned' : 'Pin'}
                           </Button>
                         </td>
@@ -367,11 +376,14 @@ export function DataPreviewPage() {
         {/* Removed middle table (not needed) */}
 
         {/* Right: Preview panel */}
-        <Card className="lg:col-span-8 h-full flex flex-col min-h-0">
-          <CardHeader className="pb-2 px-3">
-            <CardTitle className="text-base flex items-center space-x-2"><Eye className="w-4 h-4 text-green-500" /><span>{selectedDataset ? `Preview: ${selectedDataset.originalName}` : 'Preview'}</span></CardTitle>
+        <Card className="lg:col-span-8 h-full flex flex-col min-h-0 border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm">
+          <CardHeader className="pb-2 px-4">
+            <CardTitle className="text-base font-medium flex items-center space-x-2 text-gray-900 dark:text-gray-100">
+              <Eye className="w-4 h-4 text-blue-500" />
+              <span>{selectedDataset ? `Preview: ${selectedDataset.originalName}` : 'Preview'}</span>
+            </CardTitle>
       {selectedDataset && (
-              <CardDescription>
+              <CardDescription className="text-sm text-gray-600 dark:text-gray-400">
                 {selectedDataset.rowCount ? `${selectedDataset.rowCount.toLocaleString()} rows` : '...'}{selectedDataset.columns && ` × ${selectedDataset.columns.length} columns`} • {formatFileSize(selectedDataset.fileSize)}
                 {nullStats && (
                   <> • {nullStats.rowsWithNulls.toLocaleString()} rows with nulls • {nullStats.colsWithNulls.toLocaleString()} columns with nulls • {nullStats.totalNulls.toLocaleString()} null cells</>
@@ -393,14 +405,14 @@ export function DataPreviewPage() {
               ) : (
                 <>
                 <div className="flex items-center justify-between pb-3">
-                  <div className="text-xs text-gray-500">Updated {formatDate(selectedDataset.uploadedAt)}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Updated {formatDate(selectedDataset.uploadedAt)}</div>
                   <div className="flex gap-2">
                     {selectedDataset.data && selectedDataset.data.length > previewRowCount && (
-                      <Button variant="outline" size="sm" onClick={() => setPreviewRowCount(prev => prev + 10)}>Add more rows</Button>
+                      <Button variant="outline" size="sm" className="rounded-full h-8 text-xs" onClick={() => setPreviewRowCount(prev => prev + 10)}>Add more rows</Button>
                     )}
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm">
+                        <Button variant="destructive" size="sm" className="rounded-full h-8 text-xs">
                           <Trash2 className="h-4 w-4 mr-1" /> Delete
                         </Button>
                       </AlertDialogTrigger>
@@ -426,27 +438,27 @@ export function DataPreviewPage() {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
-                    <Button variant="outline" size="sm" onClick={() => window.location.href = '/data/cleaning'}>Clean</Button>
-                    <Button variant="outline" size="sm" onClick={() => window.location.href = '/data/analysis'}>Validate</Button>
-                    <Button size="sm" onClick={() => window.location.href = '/segmentation'}>Explore</Button>
+                    <Button variant="outline" size="sm" className="rounded-full h-8 text-xs" onClick={() => window.location.href = '/data/cleaning'}>Clean</Button>
+                    <Button variant="outline" size="sm" className="rounded-full h-8 text-xs" onClick={() => window.location.href = '/data/analysis'}>Validate</Button>
+                    <Button size="sm" className="rounded-full h-8 text-xs bg-blue-500 hover:bg-blue-600" onClick={() => window.location.href = '/segmentation'}>Explore</Button>
                   </div>
                 </div>
                 <div className="space-y-4 flex-1 overflow-auto min-h-0">
                   {selectedDataset.data && selectedDataset.data.length > 0 ? (
-                    <div className="border rounded min-w-max">
+                    <div className="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden min-w-max">
                       <table className="w-full text-xs">
-                        <thead className="bg-gray-50 dark:bg-gray-800">
+                        <thead className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800">
                           <tr>
                             {selectedDataset.columns?.map((c, i) => (
-                              <th key={i} className="text-left p-2 font-medium border-r border-gray-200 dark:border-gray-800 last:border-r-0">{c}</th>
+                              <th key={i} className="text-left p-2.5 font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-800 last:border-r-0">{c}</th>
                             ))}
                           </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="bg-white dark:bg-gray-900">
                           {selectedDataset.data.slice(0, previewRowCount).map((row, idx) => (
-                          <tr key={idx} className="border-t">
+                          <tr key={idx} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/30">
                               {selectedDataset.columns?.map((c, i) => (
-                                <td key={i} className="p-2 border-r border-gray-100 dark:border-gray-800 last:border-r-0">{row[c] !== null && row[c] !== undefined ? String(row[c]) : '-'}</td>
+                                <td key={i} className="p-2.5 text-gray-600 dark:text-gray-400 border-r border-gray-100 dark:border-gray-800 last:border-r-0">{row[c] !== null && row[c] !== undefined ? String(row[c]) : <span className="text-gray-400">-</span>}</td>
                               ))}
                             </tr>
                           ))}

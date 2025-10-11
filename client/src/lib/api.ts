@@ -83,5 +83,26 @@ export const api = {
     },
     sendMessage: (sessionId: number, message: string, datasetId?: number) => 
       apiRequest('POST', `/api/chat-sessions/${sessionId}/messages`, { message, datasetId })
+  },
+
+  // Dashboard configuration endpoints
+  dashboards: {
+    getConfig: (datasetId: number) => authenticatedFetch(`/api/dashboards/${datasetId}`),
+    saveConfig: async (config: any) => {
+      const sessionId = localStorage.getItem('sessionId');
+      const response = await fetch('/api/dashboards', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionId && { 'Authorization': `Bearer ${sessionId}` })
+        },
+        body: JSON.stringify(config)
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    },
+    deleteConfig: (id: number) => apiRequest('DELETE', `/api/dashboards/${id}`)
   }
 };

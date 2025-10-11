@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Construction, ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
+import { AnalyticsLayout } from "@/components/AnalyticsLayout";
 
 interface PlaceholderPageProps {
   title: string;
@@ -10,7 +11,7 @@ interface PlaceholderPageProps {
 }
 
 export function PlaceholderPage({ title, description, icon: Icon, parentPath }: PlaceholderPageProps) {
-  return (
+  const content = (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center space-x-3 mb-6">
         <Icon className="w-8 h-8 text-primary" />
@@ -20,7 +21,7 @@ export function PlaceholderPage({ title, description, icon: Icon, parentPath }: 
         </div>
       </div>
 
-      <Card className="max-w-2xl mx-auto">
+      <Card className="max-w-2xl mx-auto bg-white dark:bg-gray-950">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
             <Construction className="w-16 h-16 text-gray-400" />
@@ -49,4 +50,11 @@ export function PlaceholderPage({ title, description, icon: Icon, parentPath }: 
       </Card>
     </div>
   );
+
+  // Wrap in AnalyticsLayout if this is an analysis page
+  if (parentPath === "/analysis") {
+    return <AnalyticsLayout>{content}</AnalyticsLayout>;
+  }
+
+  return content;
 }

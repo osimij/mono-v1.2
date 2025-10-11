@@ -41,7 +41,7 @@ export function Header({ onMenuToggle, title, description, isProMode, onModeTogg
   };
 
   return (
-    <header className="fixed top-0 left-0 lg:left-64 right-0 h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 z-30">
+    <header className="fixed top-0 left-0 right-0 h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 z-30 transition-[left] lg-left-sidebar">
       <div className="h-full px-6" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0px' }}>
         {/* Left section - Menu button and title */}
         <div className="flex items-center space-x-4 h-full">
