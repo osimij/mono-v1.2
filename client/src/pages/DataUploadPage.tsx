@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Upload, FileText, Database, Shield, X, CheckCircle, AlertCircle } from "lucide-react";
 import { api } from "@/lib/api";
+import { PageHeader, PageSection, PageShell } from "@/components/layout/Page";
 
 interface UploadedFile {
   id: string;
@@ -107,23 +108,28 @@ export function DataUploadPage() {
 
   const getFileIcon = (type: string) => {
     if (type.includes('csv') || type.includes('text')) {
-      return <FileText className="w-5 h-5 text-blue-500" />;
-    } else if (type.includes('excel') || type.includes('spreadsheet')) {
-      return <Database className="w-5 h-5 text-green-500" />;
-    } else if (type.includes('json')) {
-      return <Shield className="w-5 h-5 text-purple-500" />;
+      return <FileText className="h-5 w-5 text-primary" />;
     }
-    return <FileText className="w-5 h-5 text-gray-500" />;
+
+    if (type.includes('excel') || type.includes('spreadsheet')) {
+      return <Database className="h-5 w-5 text-success" />;
+    }
+
+    if (type.includes('json')) {
+      return <Shield className="h-5 w-5 text-accent" />;
+    }
+
+    return <FileText className="h-5 w-5 text-text-subtle" />;
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'success':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
+        return <CheckCircle className="h-4 w-4 text-success" />;
       case 'error':
-        return <AlertCircle className="w-4 h-4 text-red-500" />;
+        return <AlertCircle className="h-4 w-4 text-danger" />;
       default:
-        return <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />;
+        return <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary/40 border-t-primary" />;
     }
   };
 
@@ -139,147 +145,138 @@ export function DataUploadPage() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center space-x-3 mb-6">
-        <Upload className="w-8 h-8 text-primary" />
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Upload Data</h1>
-          <p className="text-gray-600 dark:text-gray-300">Import your datasets for analysis</p>
+    <PageShell padding="lg" width="wide">
+      <PageHeader
+        eyebrow="Datasets"
+        title="Upload data"
+        description="Import CSV, Excel, or JSON files to start exploring your dataset."
+      />
+
+      <PageSection surface="transparent" contentClassName="space-y-8">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <Card className="transition-shadow hover:shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                <span>CSV files</span>
+              </CardTitle>
+              <CardDescription>Upload comma-separated value files</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-text-muted">
+                Support for standard CSV files with automatic column detection and data type inference.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="transition-shadow hover:shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5 text-success" />
+                <span>Excel files</span>
+              </CardTitle>
+              <CardDescription>Upload Excel spreadsheets</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-text-muted">
+                Support for .xlsx and .xls files with multiple sheet handling.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="transition-shadow hover:shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-accent" />
+                <span>JSON data</span>
+              </CardTitle>
+              <CardDescription>Upload structured JSON files</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-text-muted">
+                Support for JSON files with automatic flattening of nested structures.
+              </p>
+            </CardContent>
+          </Card>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <FileText className="w-5 h-5 text-blue-500" />
-              <span>CSV Files</span>
-            </CardTitle>
-            <CardDescription>Upload comma-separated value files</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Support for standard CSV files with automatic column detection and data type inference.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Database className="w-5 h-5 text-green-500" />
-              <span>Excel Files</span>
-            </CardTitle>
-            <CardDescription>Upload Excel spreadsheets</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Support for .xlsx and .xls files with multiple sheet handling.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Shield className="w-5 h-5 text-purple-500" />
-              <span>JSON Data</span>
-            </CardTitle>
-            <CardDescription>Upload structured JSON files</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Support for JSON files with automatic flattening of nested structures.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="mt-8">
-        <CardHeader>
-          <CardTitle>Upload Area</CardTitle>
-          <CardDescription>Drag and drop your files here or click to browse</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div 
-            className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
-              isDragOver 
-                ? 'border-primary bg-primary/5' 
-                : 'border-gray-300 dark:border-gray-600 hover:border-primary'
-            }`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-            <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              Drop your files here
-            </p>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Supports CSV, Excel, and JSON files up to 100MB
-            </p>
-            <Button 
-              onClick={() => fileInputRef.current?.click()}
-              className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              Browse Files
-            </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept=".csv,.xlsx,.xls,.json,.txt"
-              onChange={(e) => handleFileSelect(e.target.files)}
-              className="hidden"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Upload Progress */}
-      {uploadedFiles.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Upload Progress</CardTitle>
-            <CardDescription>Track your file uploads</CardDescription>
+            <CardTitle>Upload area</CardTitle>
+            <CardDescription>Drag and drop your files here or click to browse</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {uploadedFiles.map((file) => (
-                <div key={file.id} className="flex items-center space-x-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                  {getFileIcon(file.type)}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="font-medium text-gray-900 dark:text-white truncate">
-                        {file.name}
-                      </p>
-                      <div className="flex items-center space-x-2">
-                        {getStatusIcon(file.status)}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeFile(file.id)}
-                          className="text-gray-400 hover:text-red-500"
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
-                      <span>{formatFileSize(file.size)}</span>
-                      <span>{getStatusText(file.status)}</span>
-                    </div>
-                    <Progress value={file.progress} className="mt-2" />
-                    {file.error && (
-                      <p className="text-sm text-red-600 mt-2">{file.error}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
+            <div
+              className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-12 text-center transition-colors ${
+                isDragOver ? "border-primary bg-primary/10" : "border-border bg-surface hover:border-primary"
+              }`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <Upload className="mb-4 h-12 w-12 text-text-subtle" />
+              <p className="mb-2 text-lg font-medium text-text-primary">Drop your files here</p>
+              <p className="mb-4 text-sm text-text-muted">Supports CSV, Excel, and JSON files up to 100MB</p>
+              <Button onClick={() => fileInputRef.current?.click()}>
+                Browse files
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".csv,.xlsx,.xls,.json,.txt"
+                onChange={(e) => handleFileSelect(e.target.files)}
+                className="hidden"
+              />
             </div>
           </CardContent>
         </Card>
-      )}
-    </div>
+
+        {uploadedFiles.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Upload progress</CardTitle>
+              <CardDescription>Track your file uploads</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {uploadedFiles.map((file) => (
+                  <div
+                    key={file.id}
+                    className="flex items-center gap-4 rounded-xl border border-border p-4"
+                  >
+                    {getFileIcon(file.type)}
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <p className="truncate font-medium text-text-primary">{file.name}</p>
+                        <div className="flex items-center gap-2">
+                          {getStatusIcon(file.status)}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeFile(file.id)}
+                            className="text-text-subtle hover:text-danger"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="mb-2 flex items-center justify-between text-sm text-text-muted">
+                        <span>{formatFileSize(file.size)}</span>
+                        <span>{getStatusText(file.status)}</span>
+                      </div>
+                      <Progress value={file.progress} />
+                      {file.error && (
+                        <p className="mt-2 text-sm text-danger">{file.error}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </PageSection>
+    </PageShell>
   );
 }

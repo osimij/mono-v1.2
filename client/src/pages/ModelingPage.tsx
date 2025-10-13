@@ -19,16 +19,12 @@ import {
   Tag,
   TrendingUp,
   Calendar,
-  BarChart3,
-  Zap,
-  Award,
   HelpCircle,
   Target,
   Upload,
-  FileText,
-  Eye,
   Lightbulb
 } from "lucide-react";
+import { PageHeader, PageSection, PageShell } from "@/components/layout/Page";
 import { PredictionInterface } from "@/components/PredictionInterface";
 import { SmartModelBuilder } from "@/components/SmartModelBuilder";
 import { useToast } from "@/hooks/use-toast";
@@ -555,12 +551,14 @@ export function ModelingPage() {
   const featureImportance = recentModel ? getFeatureImportance(recentModel) : [];
 
   return (
-    <div className="p-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-        </div>
+    <PageShell padding="lg" width="wide">
+      <PageHeader
+        eyebrow="Modeling"
+        title="Model builder"
+        description="Train, evaluate, and deploy predictive models using guided workflows."
+      />
 
-        <div className="grid lg:grid-cols-3 gap-6">
+      <PageSection surface="transparent" contentClassName="grid gap-6 lg:grid-cols-3">
           {/* Model Configuration */}
           <div className="lg:col-span-2 space-y-6">
             <Card className="model-config" data-model="training">
@@ -602,7 +600,7 @@ export function ModelingPage() {
                   <div className="space-y-6">
                 {/* Dataset Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-text-soft mb-2">
                     Select Dataset
                   </label>
                   <Select value={selectedDataset} onValueChange={setSelectedDataset}>
@@ -622,7 +620,7 @@ export function ModelingPage() {
 
                 {/* Model Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-text-soft mb-2">
                     Model Name
                   </label>
                   <input
@@ -630,13 +628,13 @@ export function ModelingPage() {
                     value={modelName}
                     onChange={(e) => setModelName(e.target.value)}
                     placeholder="Enter a name for your model..."
-                    className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2"
+                    className="w-full border border-border bg-surface text-text-primary rounded-lg px-3 py-2"
                   />
                 </div>
 
                 {/* Task Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                  <label className="block text-sm font-medium text-text-soft mb-3">
                     Select ML Task
                   </label>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -651,19 +649,19 @@ export function ModelingPage() {
                           className={`p-4 border-2 rounded-lg text-left transition-colors ${
                             isSelected
                               ? 'border-primary bg-primary/10'
-                              : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                              : 'border-border hover:bg-surface-muted'
                           }`}
                         >
                           <div className="flex items-center space-x-3 mb-2">
-                            <Icon className={`w-5 h-5 ${isSelected ? 'text-primary' : 'text-gray-600 dark:text-gray-400'}`} />
-                            <span className={`font-medium ${isSelected ? 'text-primary' : 'text-gray-900 dark:text-white'}`}>
+                            <Icon className={`w-5 h-5 ${isSelected ? 'text-primary' : 'text-text-muted'}`} />
+                            <span className={`font-medium ${isSelected ? 'text-primary' : 'text-text-primary'}`}>
                               {task.name}
                             </span>
                           </div>
-                          <p className={`text-sm ${isSelected ? 'text-primary/80' : 'text-gray-600 dark:text-gray-300'}`}>
+                          <p className={`text-sm ${isSelected ? 'text-primary/80' : 'text-text-muted'}`}>
                             {task.description}
                           </p>
-                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                          <p className="text-xs text-text-subtle mt-1">
                             {task.example}
                           </p>
                         </button>
@@ -675,7 +673,7 @@ export function ModelingPage() {
                 {/* Target Column Selection */}
                 {selectedDatasetData && selectedTask && selectedTask !== "none" && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="block text-sm font-medium text-text-soft mb-2">
                       Target Column (Compatible with {selectedTask})
                     </label>
                     {suitableColumns.length === 0 ? (
@@ -703,21 +701,21 @@ export function ModelingPage() {
                 {/* Algorithm Selection */}
                 {selectedTask && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    <label className="block text-sm font-medium text-text-soft mb-3">
                       Algorithm (Recommended)
                     </label>
                     {recommendedAlgorithm && (
-                      <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                      <div className="rounded-lg border border-primary/30 bg-primary/10 p-4">
                         <div className="flex items-center justify-between">
                           <div>
-                            <h4 className="font-medium text-blue-900 dark:text-blue-100">
+                            <h4 className="font-medium text-primary">
                               {recommendedAlgorithm.name}
                             </h4>
-                            <p className="text-sm text-blue-700 dark:text-blue-300">
+                            <p className="text-sm text-primary/80">
                               {recommendedAlgorithm.description}
                             </p>
                           </div>
-                          <CheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                          <CheckCircle className="h-5 w-5 text-primary" />
                         </div>
                       </div>
                     )}
@@ -761,19 +759,19 @@ export function ModelingPage() {
                 <CardContent>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600 dark:text-gray-300">Data Preparation</span>
-                      <CheckCircle className="w-5 h-5 text-green-500" />
+                      <span className="text-sm text-text-muted">Data Preparation</span>
+                      <CheckCircle className="h-5 w-5 text-success" />
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600 dark:text-gray-300">Model Training</span>
+                      <span className="text-sm text-text-muted">Model Training</span>
                       <div className="flex items-center space-x-2">
                         <Progress value={trainingProgress} className="w-24 h-2" />
-                        <span className="text-sm text-gray-500 dark:text-gray-400">{Math.round(trainingProgress)}%</span>
+                        <span className="text-sm text-text-subtle">{Math.round(trainingProgress)}%</span>
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-300 dark:text-gray-500">Model Evaluation</span>
-                      <Clock className="w-5 h-5 text-gray-300 dark:text-gray-500" />
+                      <span className="text-sm text-text-subtle">Model Evaluation</span>
+                      <Clock className="w-5 h-5 text-text-subtle" />
                     </div>
                   </div>
                 </CardContent>
@@ -792,21 +790,24 @@ export function ModelingPage() {
                       const performance = getPerformanceStatus(model);
                       
                       return (
-                        <div key={model.id} className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800">
+                        <div key={model.id} className="p-4 border rounded-lg bg-surface-muted">
                           <div className="flex items-start justify-between mb-3">
                             <div>
-                              <p className="font-medium text-gray-900 dark:text-white">{model.name}</p>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                              <p className="font-medium text-text-primary">{model.name}</p>
+                              <p className="text-sm text-text-subtle">
                                 {model.type.replace('_', ' ')} model • Created {new Date(model.createdAt).toLocaleDateString()}
                               </p>
                             </div>
-                            <Badge 
-                              variant="default" 
+                            <Badge
+                              variant="default"
                               className={`${
-                                performance.color === 'green' ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300' :
-                                performance.color === 'blue' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300' :
-                                performance.color === 'orange' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-300' :
-                                'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300'
+                                performance.color === 'green'
+                                  ? 'bg-success-muted text-success'
+                                  : performance.color === 'blue'
+                                    ? 'bg-primary/10 text-primary'
+                                    : performance.color === 'orange'
+                                      ? 'bg-warning-muted text-warning'
+                                      : 'bg-surface-muted text-text-primary'
                               }`}
                             >
                               {performance.status}
@@ -819,7 +820,7 @@ export function ModelingPage() {
                               {Object.entries(model.metrics).slice(0, 2).map(([metric, value]: [string, any]) => (
                                 <div key={metric} className="flex items-center justify-between">
                                   <div className="flex items-center space-x-2">
-                                    <span className="text-sm text-gray-600 dark:text-gray-400 capitalize">
+                                    <span className="text-sm text-text-muted capitalize">
                                       {metric.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                                     </span>
                                     <Button
@@ -845,9 +846,9 @@ export function ModelingPage() {
 
                           {/* Metric Explanation */}
                           {showMetricExplanation && showMetricExplanation.startsWith(`${model.id}-`) && (
-                            <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                              <div className="flex items-start space-x-2">
-                                <Lightbulb className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5" />
+                            <div className="mt-3 rounded-lg border border-primary/30 bg-primary/10 p-3">
+                              <div className="flex items-start gap-2">
+                                <Lightbulb className="mt-0.5 h-4 w-4 text-primary" />
                                 <div>
                                   {(() => {
                                     const metricName = showMetricExplanation.split('-')[1];
@@ -856,14 +857,14 @@ export function ModelingPage() {
                                     
                                     return (
                                       <div className="space-y-1">
-                                        <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                                        <p className="text-sm font-medium text-primary">
                                           {explanation.description}
                                         </p>
-                                        <p className="text-sm text-blue-800 dark:text-blue-200">
+                                        <p className="text-sm text-primary/80">
                                           {explanation.interpretation}
                                         </p>
                                         {explanation.example && (
-                                          <p className="text-xs text-blue-600 dark:text-blue-300">
+                                          <p className="text-xs text-primary/70">
                                             Example: {explanation.example}
                                           </p>
                                         )}
@@ -919,28 +920,28 @@ export function ModelingPage() {
                 <CardContent>
                   <div className="space-y-4">
                     <div className="text-center">
-                      <div className="text-3xl font-bold text-green-600 dark:text-green-400 mb-1">
+                      <div className="mb-1 text-3xl font-bold text-success">
                         {modelMetrics.primaryMetric}
                         {recentModel.type === 'classification' || recentModel.type === 'time_series' ? '%' : ''}
                       </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-300">{modelMetrics.primaryLabel}</p>
+                      <p className="text-sm text-text-muted">{modelMetrics.primaryLabel}</p>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4 text-center">
                       {modelMetrics.secondaryMetrics.map((metric, index) => (
                         <div key={index}>
-                          <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                          <div className="text-lg font-semibold text-text-primary">
                             {metric.value}
                           </div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">{metric.label}</p>
+                          <p className="text-xs text-text-subtle">{metric.label}</p>
                         </div>
                       ))}
                     </div>
                     
-                    <div className="h-32 bg-gray-50 dark:bg-gray-900 rounded-lg flex items-center justify-center">
+                    <div className="h-32 bg-surface-muted rounded-lg flex items-center justify-center">
                       <div className="text-center">
-                        <TrendingUp className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
-                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                        <TrendingUp className="w-8 h-8 text-text-subtle mx-auto mb-2" />
+                        <p className="text-xs font-medium text-text-subtle">
                           {recentModel.type === 'classification' ? 'ROC Curve' : 
                            recentModel.type === 'regression' ? 'Prediction vs Actual' : 'Forecast Chart'}
                         </p>
@@ -961,15 +962,15 @@ export function ModelingPage() {
                   <div className="space-y-3">
                     {featureImportance.map((feature: any, index: number) => (
                       <div key={index} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600 dark:text-gray-300">{feature.feature}</span>
+                        <span className="text-sm text-text-muted">{feature.feature}</span>
                         <div className="flex items-center space-x-2">
-                          <div className="w-16 h-2 bg-gray-200 dark:bg-gray-600 rounded-full">
+                          <div className="w-16 h-2 bg-surface-muted rounded-full">
                             <div 
                               className="h-2 bg-primary rounded-full"
                               style={{ width: `${feature.importance * 100}%` }}
                             />
                           </div>
-                          <span className="text-sm font-medium text-gray-900 dark:text-white w-8">
+                          <span className="text-sm font-medium text-text-primary w-8">
                             {feature.importance.toFixed(2)}
                           </span>
                         </div>
@@ -989,19 +990,19 @@ export function ModelingPage() {
                 <CardContent>
                   <div className="space-y-3">
                     <Button 
-                      className="w-full bg-emerald-600 hover:bg-emerald-700"
+                      className="w-full bg-success text-success-foreground hover:bg-success/90"
                       onClick={handleExportModel}
                       disabled={isExporting}
                     >
-                      <Download className="w-4 h-4 mr-2" />
+                      <Download className="mr-2 h-4 w-4" />
                       {isExporting ? "Exporting..." : "Export Model"}
                     </Button>
                     <Button 
-                      className="w-full bg-blue-600 hover:bg-blue-700"
+                      className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                       onClick={handleDeployModel}
                       disabled={isDeploying}
                     >
-                      <Rocket className="w-4 h-4 mr-2" />
+                      <Rocket className="mr-2 h-4 w-4" />
                       {isDeploying ? "Deploying..." : "Deploy Model"}
                     </Button>
                     <Button 
@@ -1021,26 +1022,27 @@ export function ModelingPage() {
             {!recentModel && (
               <Card>
                 <CardContent className="p-6 text-center">
-                  <Bot className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-500 dark:text-gray-400 mb-4">
+                  <Bot className="w-12 h-12 text-text-subtle mx-auto mb-4" />
+                  <p className="text-text-subtle mb-4">
                     No models trained yet
                   </p>
-                  <p className="text-sm text-gray-400 dark:text-gray-500">
+                  <p className="text-sm text-text-subtle">
                     Create your first model to see performance metrics
                   </p>
                 </CardContent>
               </Card>
             )}
           </div>
-        </div>
 
-        {/* Prediction Interface Modal */}
+      </PageSection>
+
+      {/* Prediction Interface Modal */}
         {showPredictionInterface && selectedModel && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-surface rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  <h2 className="text-xl font-bold text-text-primary">
                     Use Model: {selectedModel.name}
                   </h2>
                   <Button
@@ -1055,9 +1057,9 @@ export function ModelingPage() {
                 {!predictionMode ? (
                   // Mode Selection
                   <div className="space-y-4">
-                    <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
-                      <Target className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                      <AlertDescription className="text-blue-800 dark:text-blue-200">
+                    <Alert className="border border-primary/30 bg-primary/10">
+                      <Target className="h-4 w-4 text-primary" />
+                      <AlertDescription className="text-primary">
                         <div className="space-y-1">
                           <div className="font-medium">
                             {selectedModel.type === 'classification' ? 'Predict Categories' : 
@@ -1071,30 +1073,30 @@ export function ModelingPage() {
                     </Alert>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Card className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors" 
+                      <Card className="cursor-pointer transition-colors hover:bg-surface-muted" 
                             onClick={() => setPredictionMode('single')}>
                         <CardContent className="p-6 text-center">
-                          <Target className="w-12 h-12 text-orange-600 mx-auto mb-4" />
-                          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                          <Target className="mx-auto mb-4 h-12 w-12 text-warning" />
+                          <h3 className="text-lg font-medium text-text-primary mb-2">
                             Single Prediction
                           </h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                          <p className="text-sm text-text-muted mb-4">
                             Enter values for one prediction at a time. Perfect for quick what-if scenarios.
                           </p>
-                          <Button className="w-full bg-orange-600 hover:bg-orange-700">
+                          <Button className="w-full bg-warning text-warning-foreground hover:bg-warning/90">
                             Start Single Prediction
                           </Button>
                         </CardContent>
                       </Card>
 
-                      <Card className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                      <Card className="cursor-pointer transition-colors hover:bg-surface-muted"
                             onClick={() => setPredictionMode('batch')}>
                         <CardContent className="p-6 text-center">
-                          <Upload className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-                          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                          <Upload className="mx-auto mb-4 h-12 w-12 text-primary" />
+                          <h3 className="text-lg font-medium text-text-primary mb-2">
                             Batch Upload
                           </h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                          <p className="text-sm text-text-muted mb-4">
                             Upload a CSV file with multiple rows to get predictions for all at once.
                           </p>
                           <Button variant="outline" className="w-full">
@@ -1134,10 +1136,10 @@ export function ModelingPage() {
         {/* Business Insights Modal */}
         {showModelInsights && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-surface rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  <h2 className="text-xl font-bold text-text-primary">
                     Model Insights: {showModelInsights.name}
                   </h2>
                   <Button
@@ -1157,56 +1159,67 @@ export function ModelingPage() {
                     <div className="space-y-6">
                       {/* Performance Status */}
                       <div className="flex items-center space-x-3">
-                        <Badge 
-                          variant="default" 
-                          className={`text-lg px-4 py-2 ${
-                            performance.color === 'green' ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300' :
-                            performance.color === 'blue' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300' :
-                            performance.color === 'orange' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-300' :
-                            'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300'
+                        <Badge
+                          variant="default"
+                          className={`px-4 py-2 text-lg ${
+                            performance.color === 'green'
+                              ? 'bg-success-muted text-success'
+                              : performance.color === 'blue'
+                                ? 'bg-primary/10 text-primary'
+                                : performance.color === 'orange'
+                                  ? 'bg-warning-muted text-warning'
+                                  : 'bg-surface-muted text-text-primary'
                           }`}
                         >
                           {performance.status}
                         </Badge>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                        <span className="text-sm text-text-subtle">
                           Performance Status
                         </span>
                       </div>
 
                       {/* Purpose */}
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                        <h3 className="text-lg font-semibold text-text-primary mb-2">
                           What This Model Does
                         </h3>
-                        <p className="text-gray-700 dark:text-gray-300">
+                        <p className="text-text-soft">
                           {insights.purpose}
                         </p>
                       </div>
 
                       {/* How It Works */}
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                        <h3 className="text-lg font-semibold text-text-primary mb-2">
                           How It Works
                         </h3>
-                        <p className="text-gray-700 dark:text-gray-300">
+                        <p className="text-text-soft">
                           {insights.whatItDoes}
                         </p>
                       </div>
 
                       {/* Business Value */}
-                      <div className={`p-4 rounded-lg border ${
-                        performance.color === 'green' ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800' :
-                        performance.color === 'blue' ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800' :
-                        'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800'
-                      }`}>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                      <div
+                        className={`rounded-lg border p-4 ${
+                          performance.color === 'green'
+                            ? 'border-success/40 bg-success-muted'
+                            : performance.color === 'blue'
+                              ? 'border-primary/30 bg-primary/10'
+                              : 'border-warning/40 bg-warning-muted'
+                        }`}
+                      >
+                        <h3 className="text-lg font-semibold text-text-primary mb-2">
                           Business Value
                         </h3>
-                        <p className={`${
-                          performance.color === 'green' ? 'text-green-800 dark:text-green-200' :
-                          performance.color === 'blue' ? 'text-blue-800 dark:text-blue-200' :
-                          'text-orange-800 dark:text-orange-200'
-                        }`}>
+                        <p
+                          className={`${
+                            performance.color === 'green'
+                              ? 'text-success'
+                              : performance.color === 'blue'
+                                ? 'text-primary'
+                                : 'text-warning'
+                          }`}
+                        >
                           {insights.businessValue}
                         </p>
                       </div>
@@ -1214,7 +1227,7 @@ export function ModelingPage() {
                       {/* Key Metrics */}
                       {showModelInsights.metrics && (
                         <div>
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                          <h3 className="text-lg font-semibold text-text-primary mb-3">
                             Key Performance Numbers
                           </h3>
                           <div className="space-y-4">
@@ -1222,12 +1235,12 @@ export function ModelingPage() {
                               const explanation = getMetricExplanation(metric, value, showModelInsights.type);
                               
                               return (
-                                <div key={metric} className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <div key={metric} className="p-4 bg-surface-muted rounded-lg">
                                   <div className="flex items-center justify-between mb-2">
-                                    <div className="text-sm font-medium text-gray-600 dark:text-gray-400 capitalize">
+                                    <div className="text-sm font-medium text-text-muted capitalize">
                                       {metric.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                                     </div>
-                                    <div className="text-lg font-bold text-gray-900 dark:text-white">
+                                    <div className="text-lg font-bold text-text-primary">
                                       {typeof value === 'number' ? 
                                         (metric.includes('accuracy') || metric.includes('precision') || metric.includes('recall') || metric.includes('f1') ? 
                                           `${(value * 100).toFixed(1)}%` : 
@@ -1235,14 +1248,14 @@ export function ModelingPage() {
                                         ) : value}
                                     </div>
                                   </div>
-                                  <div className="text-sm text-gray-700 dark:text-gray-300 mb-1">
+                                  <div className="text-sm text-text-soft mb-1">
                                     {explanation.description}
                                   </div>
-                                  <div className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">
+                                  <div className="text-sm font-medium text-text-primary mb-1">
                                     {explanation.interpretation}
                                   </div>
                                   {explanation.example && (
-                                    <div className="text-xs text-gray-600 dark:text-gray-400 italic">
+                                    <div className="text-xs text-text-muted italic">
                                       {explanation.example}
                                     </div>
                                   )}
@@ -1255,23 +1268,23 @@ export function ModelingPage() {
 
                       {/* What You Can Do */}
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                        <h3 className="text-lg font-semibold text-text-primary mb-3">
                           What You Can Do Next
                         </h3>
                         <ul className="space-y-2">
                           {insights.nextSteps.map((step, index) => (
-                            <li key={index} className="flex items-start space-x-2">
-                              <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                              <span className="text-gray-700 dark:text-gray-300">{step}</span>
+                            <li key={index} className="flex items-start gap-2">
+                              <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-success" />
+                              <span className="text-text-soft">{step}</span>
                             </li>
                           ))}
                         </ul>
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="flex space-x-3 pt-4 border-t border-gray-200 dark:border-gray-600">
+                      <div className="flex gap-3 border-t border-border pt-4">
                         <Button
-                          className="flex-1 bg-orange-600 hover:bg-orange-700"
+                          className="flex-1 bg-warning text-warning-foreground hover:bg-warning/90"
                           onClick={() => {
                             setShowModelInsights(null);
                             setSelectedModel(showModelInsights);
@@ -1295,7 +1308,6 @@ export function ModelingPage() {
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </PageShell>
   );
 }

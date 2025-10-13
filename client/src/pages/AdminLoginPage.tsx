@@ -29,11 +29,11 @@ export function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4">
-      <Card className="w-full max-w-md">
+    <div className="flex min-h-screen items-center justify-center bg-surface px-4">
+      <Card className="w-full max-w-md border border-border/60 shadow-lg shadow-primary/10">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900">
-            <Shield className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-warning/10 text-warning">
+            <Shield className="h-6 w-6" />
           </div>
           <CardTitle className="text-2xl font-bold">Administrator Login</CardTitle>
           <CardDescription>

@@ -8,9 +8,10 @@ import { DataTable } from "@/components/DataTable";
 import { SegmentationFiltering } from "@/components/SegmentationFiltering";
 import { api } from "@/lib/api";
 import { Dataset } from "@/types";
-import { Database, TrendingUp, Filter, Users, BarChart3, Download, Save, RefreshCw, ChevronDown, ChevronRight, CheckCircle } from "lucide-react";
+import { Database, Filter, Users, BarChart3, Download, Save, RefreshCw, ChevronDown, ChevronRight, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { PageHeader, PageSection, PageShell } from "@/components/layout/Page";
 
 export function SegmentationPage() {
   const [selectedDataset, setSelectedDataset] = useState<Dataset | null>(null);
@@ -355,25 +356,18 @@ export function SegmentationPage() {
   };
 
   return (
-    <div className="p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Segmentation & Filtering
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Filter your data and create meaningful segments for better analysis
-          </p>
-        </div>
-
-        <div className="grid lg:grid-cols-4 gap-6">
+    <PageShell>
+      <PageHeader
+        title="Segmentation & Filtering"
+        description="Filter your data and create meaningful segments for better analysis"
+      />
+      <PageSection surface="transparent" contentClassName="grid gap-6 lg:grid-cols-4">
           {/* Sidebar */}
           <div className="lg:col-span-1 space-y-4">
             {/* Dataset Selection Section */}
             <Card>
               <CardHeader 
-                className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                className="cursor-pointer hover:bg-surface-muted transition-colors"
                 onClick={() => toggleSection('datasetSelection')}
               >
                 <div className="flex items-center justify-between">
@@ -381,7 +375,7 @@ export function SegmentationPage() {
                     <Database className="w-5 h-5" />
                     <span>Dataset Selection</span>
                     {selectedDataset && (
-                      <CheckCircle className="w-5 h-5 text-green-500" />
+                      <CheckCircle className="w-5 h-5 text-success" />
                     )}
                   </CardTitle>
                   {expandedSections.datasetSelection ? (
@@ -395,32 +389,32 @@ export function SegmentationPage() {
                 <CardContent className="space-y-4">
                   {datasetsLoading ? (
                     <div className="flex items-center justify-center py-4">
-                      <RefreshCw className="w-5 h-5 animate-spin text-gray-400" />
-                      <span className="ml-2 text-sm text-gray-500">Loading...</span>
+                      <RefreshCw className="w-5 h-5 animate-spin text-text-subtle" />
+                      <span className="ml-2 text-sm text-text-muted">Loading...</span>
                     </div>
                   ) : datasets.length > 0 ? (
                     <div className="space-y-3">
                       {datasets.map((dataset: Dataset) => (
                         <div
                           key={dataset.id}
-                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                          className={`p-3 rounded-lg border border-border cursor-pointer transition-colors ${
                             selectedDataset?.id === dataset.id 
                               ? 'border-primary bg-primary/5' 
-                              : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                              : 'hover:bg-surface-muted'
                           }`}
                           onClick={() => handleDatasetSelect(dataset)}
                         >
                           <div className="flex items-center justify-between">
                             <div>
-                              <h4 className="font-medium text-sm text-gray-900 dark:text-white">
+                              <h4 className="font-medium text-sm text-text-primary">
                                 {dataset.originalName}
                               </h4>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                              <p className="text-xs text-text-muted">
                                 {dataset.rowCount.toLocaleString()} rows • {dataset.columns.length} columns
                               </p>
                             </div>
                             {selectedDataset?.id === dataset.id && (
-                              <CheckCircle className="w-4 h-4 text-green-500" />
+                              <CheckCircle className="w-4 h-4 text-success" />
                             )}
                           </div>
                         </div>
@@ -428,8 +422,8 @@ export function SegmentationPage() {
                     </div>
                   ) : (
                     <div className="text-center py-4">
-                      <Database className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                      <Database className="w-8 h-8 text-text-subtle mx-auto mb-2" />
+                      <p className="text-sm text-text-muted">
                         No datasets available
                       </p>
                     </div>
@@ -442,7 +436,7 @@ export function SegmentationPage() {
             {selectedDataset && (
               <Card>
                 <CardHeader 
-                  className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  className="cursor-pointer hover:bg-surface-muted transition-colors"
                   onClick={() => toggleSection('filtering')}
                 >
                   <div className="flex items-center justify-between">
@@ -479,7 +473,7 @@ export function SegmentationPage() {
             {selectedDataset && (
               <Card>
                 <CardHeader 
-                  className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  className="cursor-pointer hover:bg-surface-muted transition-colors"
                   onClick={() => toggleSection('segmentation')}
                 >
                   <div className="flex items-center justify-between">
@@ -516,7 +510,7 @@ export function SegmentationPage() {
             {selectedDataset && (
               <Card>
                 <CardHeader 
-                  className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  className="cursor-pointer hover:bg-surface-muted transition-colors"
                   onClick={() => toggleSection('summary')}
                 >
                   <div className="flex items-center justify-between">
@@ -597,15 +591,15 @@ export function SegmentationPage() {
                   <CardContent>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                        <p className="text-sm text-text-muted">
                           {selectedDataset.rowCount.toLocaleString()} rows • {selectedDataset.columns.length} columns • {formatFileSize(selectedDataset.fileSize)}
                         </p>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                        <div className="text-sm text-text-muted">
                           Processed: {processedData.length.toLocaleString()} rows
                         </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                        <div className="text-sm text-text-muted">
                           {selectedDataset.columns.length + activeSegments.length} columns
                         </div>
                       </div>
@@ -618,7 +612,7 @@ export function SegmentationPage() {
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle>Data Preview</CardTitle>
-                      <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+                      <div className="flex items-center space-x-2 text-sm text-text-muted">
                         <span>{processedData.length.toLocaleString()} rows</span>
                         <span>•</span>
                         <span>{selectedDataset.columns.length + activeSegments.length} columns</span>
@@ -648,11 +642,11 @@ export function SegmentationPage() {
             ) : (
               <Card>
                 <CardContent className="p-8 text-center">
-                  <Filter className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                  <Filter className="w-12 h-12 text-text-subtle mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-text-primary mb-2">
                     No Dataset Selected
                   </h3>
-                  <p className="text-gray-500 dark:text-gray-400 mb-4">
+                  <p className="text-text-muted mb-4">
                     Please select a dataset from the sidebar to begin filtering and segmentation
                   </p>
                   <Button onClick={() => setExpandedSections(prev => ({ ...prev, datasetSelection: true }))}>
@@ -662,8 +656,7 @@ export function SegmentationPage() {
               </Card>
             )}
           </div>
-        </div>
-      </div>
-    </div>
+      </PageSection>
+    </PageShell>
   );
 }

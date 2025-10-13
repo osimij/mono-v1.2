@@ -11,6 +11,7 @@ import { DynamicChart } from "@/components/DynamicChart";
 import { AddMetricCardDialog } from "@/components/AddMetricCardDialog";
 import { AddChartDialog } from "@/components/AddChartDialog";
 import { AnalyticsLayout } from "@/components/AnalyticsLayout";
+import { PageHeader, PageSection, PageShell } from "@/components/layout/Page";
 import { cn } from "@/lib/utils";
 import type { DashboardMetricCard, DashboardChart, Dataset } from "@shared/schema";
 
@@ -124,78 +125,90 @@ export function AnalysisOverviewPage() {
 
   if (loadingDatasets) {
     return (
-      <div className="container mx-auto p-6 flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
+      <AnalyticsLayout>
+        <PageShell padding="lg" className="bg-transparent">
+          <div className="flex min-h-[320px] items-center justify-center rounded-2xl bg-surface-elevated/60 p-10 shadow-sm ring-1 ring-border/60">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        </PageShell>
+      </AnalyticsLayout>
     );
   }
 
   if (!datasets || datasets.length === 0) {
     return (
       <AnalyticsLayout>
-        <div className="container mx-auto p-6">
-          <Card className="p-8">
-            <div className="text-center space-y-4">
-              <AlertCircle className="w-12 h-12 text-gray-400 mx-auto" />
-              <h3 className="text-lg font-semibold">No Datasets Found</h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Upload a CSV file to start building custom dashboards
-              </p>
-              <Button onClick={() => window.location.href = '/data/upload'}>
-                Upload Dataset
-              </Button>
-            </div>
+        <PageShell padding="lg" className="bg-transparent">
+          <Card className="flex flex-col items-center gap-4 rounded-2xl border-border/60 bg-surface-elevated p-10 text-center shadow-sm">
+            <AlertCircle className="mx-auto h-12 w-12 text-text-subtle" />
+            <h3 className="text-xl font-semibold text-text-primary">
+              No datasets found
+            </h3>
+            <p className="max-w-md text-sm text-text-muted">
+              Upload a CSV file to start building custom dashboards tailored to your
+              business metrics.
+            </p>
+            <Button onClick={() => (window.location.href = "/data/upload")}>
+              Upload dataset
+            </Button>
           </Card>
-        </div>
+        </PageShell>
       </AnalyticsLayout>
     );
   }
 
   return (
     <AnalyticsLayout>
-      <div className="container mx-auto p-6 space-y-6">
-        {/* Dataset Selector */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Overview Dashboard</h2>
-          <Select
-            value={selectedDatasetId?.toString()}
-            onValueChange={(value) => setSelectedDatasetId(parseInt(value))}
-          >
-            <SelectTrigger className="w-[280px]">
-              <SelectValue placeholder="Select a dataset" />
-            </SelectTrigger>
-            <SelectContent>
-              {datasets.map(ds => (
-                <SelectItem key={ds.id} value={ds.id.toString()}>
-                  {ds.originalName || ds.filename}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <PageShell padding="lg" className="bg-transparent">
+        <PageHeader
+          title="Overview dashboard"
+          description="Compose high-impact metrics and visualizations tailored to each dataset."
+          actions={
+            <Select
+              value={selectedDatasetId?.toString()}
+              onValueChange={(value) => setSelectedDatasetId(parseInt(value, 10))}
+            >
+              <SelectTrigger className="w-[280px]">
+                <SelectValue placeholder="Select a dataset" />
+              </SelectTrigger>
+              <SelectContent>
+                {datasets.map((ds) => (
+                  <SelectItem key={ds.id} value={ds.id.toString()}>
+                    {ds.originalName || ds.filename}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          }
+        />
 
-          {loadingDataset || loadingConfig ? (
-            <div className="flex items-center justify-center min-h-[400px]">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : dataset && datasetAnalysis ? (
-            <>
-              {/* Action Buttons */}
-              <div className="flex gap-3">
-                <Button onClick={() => setShowAddMetric(true)} className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  Add Metric Card
-                </Button>
-                <Button onClick={() => setShowAddChart(true)} variant="outline" className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  Add Chart
-                </Button>
-              </div>
-
-              {/* Metrics Grid */}
-              {metrics.length > 0 && (
-                <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))' }}>
-                  {metrics.map(metric => (
+        {loadingDataset || loadingConfig ? (
+          <div className="flex min-h-[320px] items-center justify-center rounded-2xl bg-surface-elevated/60 p-12 shadow-sm ring-1 ring-border/60">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : dataset && datasetAnalysis ? (
+          <>
+            <PageSection
+              surface="card"
+              title="Dashboard builder"
+              description="Metric cards highlight key KPIs while charts reveal deeper trends across your dataset."
+              actions={
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button onClick={() => setShowAddMetric(true)} className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Add metric card
+                  </Button>
+                  <Button onClick={() => setShowAddChart(true)} variant="outline" className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Add chart
+                  </Button>
+                </div>
+              }
+              contentClassName="gap-10"
+            >
+              {metrics.length > 0 ? (
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+                  {metrics.map((metric) => (
                     <DynamicMetricCard
                       key={metric.id}
                       metric={metric}
@@ -205,12 +218,11 @@ export function AnalysisOverviewPage() {
                     />
                   ))}
                 </div>
-              )}
+              ) : null}
 
-              {/* Charts Grid */}
-              {charts.length > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                  {charts.map(chart => (
+              {charts.length > 0 ? (
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+                  {charts.map((chart) => (
                     <div
                       key={chart.id}
                       className={cn(
@@ -219,7 +231,7 @@ export function AnalysisOverviewPage() {
                           ? "lg:col-span-12"
                           : chart.size === "small"
                             ? "lg:col-span-4"
-                            : "lg:col-span-6"
+                            : "lg:col-span-6",
                       )}
                     >
                       <DynamicChart
@@ -233,59 +245,58 @@ export function AnalysisOverviewPage() {
                     </div>
                   ))}
                 </div>
-              )}
+              ) : null}
 
-              {/* Empty State */}
-              {metrics.length === 0 && charts.length === 0 && (
-                <Card className="p-12 bg-white dark:bg-gray-950">
-                  <div className="text-center space-y-4">
-                    <BarChart3 className="w-16 h-16 text-gray-300 dark:text-gray-700 mx-auto" />
-                    <div>
-                      <h3 className="text-xl font-semibold mb-2">Start Building Your Dashboard</h3>
-                      <p className="text-gray-600 dark:text-gray-400 mb-6">
-                        Add metric cards and charts to visualize your data.<br />
-                        Click the buttons above to get started!
-                      </p>
-                    </div>
-                    <div className="flex gap-3 justify-center">
-                      <Button onClick={() => setShowAddMetric(true)} className="gap-2">
-                        <Plus className="w-4 h-4" />
-                        Add Metric Card
-                      </Button>
-                      <Button onClick={() => setShowAddChart(true)} variant="outline" className="gap-2">
-                        <Plus className="w-4 h-4" />
-                        Add Chart
-                      </Button>
-                    </div>
+              {metrics.length === 0 && charts.length === 0 ? (
+                <div className="flex flex-col items-center gap-5 rounded-2xl border border-dashed border-border/60 bg-surface-muted/60 px-10 py-12 text-center">
+                  <BarChart3 className="h-16 w-16 text-text-subtle" />
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-semibold text-text-primary">
+                      Start building your dashboard
+                    </h3>
+                    <p className="max-w-xl text-sm text-text-muted">
+                      Add metric cards and charts to visualize how your data is evolving.
+                      Use the actions above to start designing your workspace.
+                    </p>
                   </div>
-                </Card>
-              )}
+                  <div className="flex flex-wrap justify-center gap-3">
+                    <Button onClick={() => setShowAddMetric(true)} className="gap-2">
+                      <Plus className="h-4 w-4" />
+                      Add metric card
+                    </Button>
+                    <Button onClick={() => setShowAddChart(true)} variant="outline" className="gap-2">
+                      <Plus className="h-4 w-4" />
+                      Add chart
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+            </PageSection>
 
-              {/* Dialogs */}
-              <AddMetricCardDialog
-                open={showAddMetric || !!editingMetric}
-                onOpenChange={(open) => {
-                  setShowAddMetric(open);
-                  if (!open) setEditingMetric(undefined);
-                }}
-                onSave={editingMetric ? handleUpdateMetric : handleAddMetric}
-                columns={datasetAnalysis.columns}
-                existingMetric={editingMetric}
-              />
+            <AddMetricCardDialog
+              open={showAddMetric || !!editingMetric}
+              onOpenChange={(open) => {
+                setShowAddMetric(open);
+                if (!open) setEditingMetric(undefined);
+              }}
+              onSave={editingMetric ? handleUpdateMetric : handleAddMetric}
+              columns={datasetAnalysis.columns}
+              existingMetric={editingMetric}
+            />
 
-              <AddChartDialog
-                open={showAddChart || !!editingChart}
-                onOpenChange={(open) => {
-                  setShowAddChart(open);
-                  if (!open) setEditingChart(undefined);
-                }}
-                onSave={editingChart ? handleUpdateChart : handleAddChart}
-                columns={datasetAnalysis.columns}
-                existingChart={editingChart}
-              />
-            </>
-          ) : null}
-      </div>
+            <AddChartDialog
+              open={showAddChart || !!editingChart}
+              onOpenChange={(open) => {
+                setShowAddChart(open);
+                if (!open) setEditingChart(undefined);
+              }}
+              onSave={editingChart ? handleUpdateChart : handleAddChart}
+              columns={datasetAnalysis.columns}
+              existingChart={editingChart}
+            />
+          </>
+        ) : null}
+      </PageShell>
     </AnalyticsLayout>
   );
 }

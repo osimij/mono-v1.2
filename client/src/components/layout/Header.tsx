@@ -41,10 +41,10 @@ export function Header({ onMenuToggle, title, description, isProMode, onModeTogg
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 z-30 transition-[left] lg-left-sidebar">
-      <div className="h-full px-6" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0px' }}>
+    <header className="fixed left-0 right-0 top-0 z-30 h-16 border-b border-border/60 bg-surface-elevated/80 backdrop-blur-xl transition-[left] lg-left-sidebar">
+      <div className="grid h-full grid-cols-[1fr,_auto] items-center gap-6 px-6">
         {/* Left section - Menu button and title */}
-        <div className="flex items-center space-x-4 h-full">
+        <div className="flex h-full items-center gap-4">
           <Button
             variant="ghost"
             size="icon"
@@ -55,11 +55,11 @@ export function Header({ onMenuToggle, title, description, isProMode, onModeTogg
           </Button>
           
           {title && (
-            <div className="flex items-center space-x-3 hidden sm:flex h-full">
+            <div className="hidden h-full items-center gap-3 sm:flex">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <h1 className="text-xl font-semibold text-gray-900 dark:text-white cursor-help">
+                    <h1 className="cursor-help text-xl font-semibold text-text-primary">
                       {title}
                     </h1>
                   </TooltipTrigger>
@@ -75,11 +75,12 @@ export function Header({ onMenuToggle, title, description, isProMode, onModeTogg
         </div>
         
         {/* Right section - Theme, mode toggle, and profile */}
-        <div className="flex items-center justify-end space-x-4 h-full">
+        <div className="flex h-full items-center justify-end gap-4">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="relative text-text-muted hover:text-text-primary"
           >
             <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -94,12 +95,12 @@ export function Header({ onMenuToggle, title, description, isProMode, onModeTogg
                     variant="ghost"
                     size="icon"
                     onClick={onModeToggle}
-                    className="relative"
+                    className="relative text-text-muted hover:text-text-primary"
                   >
                     {isProMode ? (
-                      <Sparkles className="h-5 w-5 text-orange-600" />
+                      <Sparkles className="h-5 w-5 text-warning" />
                     ) : (
-                      <Brain className="h-5 w-5 text-blue-600" />
+                      <Brain className="h-5 w-5 text-primary" />
                     )}
                     <span className="sr-only">Toggle mode</span>
                   </Button>
@@ -113,9 +114,9 @@ export function Header({ onMenuToggle, title, description, isProMode, onModeTogg
 
           {!user ? (
             // Not logged in - show login buttons
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-2">
               <Link href="/admin-login">
-                <Button variant="ghost" size="sm" className="text-orange-600 hover:text-orange-700">
+                <Button variant="ghost" size="sm" className="text-warning hover:text-warning">
                   <Shield className="h-4 w-4 mr-2" />
                   Admin
                 </Button>
@@ -128,10 +129,10 @@ export function Header({ onMenuToggle, title, description, isProMode, onModeTogg
             </div>
           ) : (
             // Logged in - show user menu
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-4">
               {user?.isAdmin && (
                 <Link href="/admin">
-                  <Button variant="ghost" size="sm" className="text-orange-600 hover:text-orange-700">
+                  <Button variant="ghost" size="sm" className="text-warning hover:text-warning">
                     <Shield className="h-4 w-4 mr-2" />
                     Admin Panel
                   </Button>
@@ -140,7 +141,7 @@ export function Header({ onMenuToggle, title, description, isProMode, onModeTogg
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full bg-surface-muted/60 p-0 hover:bg-surface-muted">
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.firstName || "User"} />
                       <AvatarFallback>
@@ -155,7 +156,7 @@ export function Header({ onMenuToggle, title, description, isProMode, onModeTogg
                       <p className="text-sm font-medium leading-none">
                         {user?.firstName} {user?.lastName}
                       </p>
-                      <p className="text-xs leading-none text-muted-foreground">
+                      <p className="text-xs leading-none text-text-muted">
                         {user?.email}
                       </p>
                       {user?.isAdmin && (

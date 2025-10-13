@@ -25,21 +25,21 @@ export function DynamicMetricCard({ metric, data, onEdit, onDelete: _onDelete }:
     <button
       type="button"
       onClick={onEdit}
-      className="group relative flex h-[97px] w-full max-w-[190px] flex-col cursor-pointer select-none rounded-xl border border-gray-200 bg-white pb-2 pe-1 ps-4 pt-4 transition-colors [@media(hover:hover)]:hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:[@media(hover:hover)]:hover:bg-gray-900"
+      className="group relative flex h-[108px] w-full max-w-[220px] flex-col cursor-pointer select-none rounded-2xl bg-surface-elevated p-4 pe-3 shadow-xs ring-1 ring-border/60 transition-all duration-200 [@media(hover:hover)]:hover:-translate-y-0.5 [@media(hover:hover)]:hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
     >
-      <div className="mb-2 flex h-4 items-center justify-between gap-1 text-left text-xs font-medium text-gray-900 sm:text-sm md:text-base dark:text-white">
+      <div className="mb-2 flex h-4 items-center justify-between gap-1 text-left text-xs font-medium text-text-muted sm:text-sm md:text-base">
         <span className="truncate">{metric.title}</span>
-        <div className="text-base text-gray-500 transition group-hover:hidden dark:text-gray-400">
+        <div className="text-base text-text-subtle transition-opacity duration-200 group-hover:opacity-0">
           <ChevronRight className="h-4 w-4" />
         </div>
       </div>
 
-      <div className="flex flex-nowrap items-baseline gap-2 text-gray-900 dark:text-white">
-        <div className="text-3xl font-bold tracking-tight">
+      <div className="flex flex-nowrap items-baseline gap-2 text-text-primary">
+        <div className="text-3xl font-semibold tracking-tight">
           {formattedValue}
         </div>
         {formattedComparisonColumnValue ? (
-          <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
+          <span className="text-sm font-normal text-text-subtle">
             / {formattedComparisonColumnValue}
           </span>
         ) : null}
@@ -48,9 +48,7 @@ export function DynamicMetricCard({ metric, data, onEdit, onDelete: _onDelete }:
       {metric.showChange && metric.comparisonValue !== undefined && (
         <div
           className={`mt-1 flex flex-nowrap items-center gap-0.5 text-sm font-medium ${
-            metric.comparisonValue >= 0
-              ? "text-green-600 dark:text-green-500"
-              : "text-red-600 dark:text-red-500"
+            metric.comparisonValue >= 0 ? "text-success" : "text-danger"
           }`}
         >
           <span className="shrink-0 transition-transform duration-300">
@@ -62,4 +60,3 @@ export function DynamicMetricCard({ metric, data, onEdit, onDelete: _onDelete }:
     </button>
   );
 }
-

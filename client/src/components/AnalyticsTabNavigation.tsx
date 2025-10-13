@@ -58,7 +58,7 @@ export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationPr
 
   return (
     <nav 
-      className="relative border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950"
+      className="relative border-b border-border/60 bg-surface-elevated/80 backdrop-blur-md"
       role="navigation"
       aria-label="Analytics Tabs"
     >
@@ -68,10 +68,10 @@ export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationPr
           <button
             onClick={() => scroll("left")}
             aria-label="Previous"
-            className="absolute left-0 z-10 flex items-center justify-center w-9 h-9 rounded-full bg-gray-900/75 dark:bg-gray-100/75 backdrop-blur-sm hover:bg-gray-900/90 dark:hover:bg-gray-100/90 transition-colors"
+            className="absolute left-0 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-surface-inverted/80 text-text-inverted shadow-sm backdrop-blur-sm transition-colors hover:bg-surface-inverted/95"
             style={{ top: "50%", transform: "translateY(-50%)" }}
           >
-            <ChevronLeft className="w-5 h-5 text-white dark:text-gray-900" />
+            <ChevronLeft className="h-5 w-5" />
           </button>
         )}
 
@@ -93,11 +93,11 @@ export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationPr
                   role="tab"
                   aria-selected={isActive}
                   className={cn(
-                    "relative px-4 py-4 text-sm font-medium transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/50",
-                    "focus:outline-none rounded-t-lg",
+                    "relative rounded-t-lg px-4 py-4 text-sm font-medium transition-colors",
+                    "focus:outline-none hover:bg-surface-muted/80",
                     isActive
-                      ? "text-gray-900 dark:text-white"
-                      : "text-gray-600 dark:text-gray-400"
+                      ? "text-text-primary"
+                      : "text-text-muted"
                   )}
                 >
                   <span className="whitespace-nowrap">{tab.label}</span>
@@ -105,7 +105,7 @@ export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationPr
                   {/* Active Indicator */}
                   {isActive && (
                     <div 
-                      className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full"
+                      className="absolute bottom-0 left-3 right-3 h-1 rounded-full bg-primary"
                     />
                   )}
                 </button>
@@ -119,14 +119,13 @@ export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationPr
           <button
             onClick={() => scroll("right")}
             aria-label="Next"
-            className="absolute right-0 z-10 flex items-center justify-center w-9 h-9 rounded-full bg-gray-900/75 dark:bg-gray-100/75 backdrop-blur-sm hover:bg-gray-900/90 dark:hover:bg-gray-100/90 transition-colors"
+            className="absolute right-0 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-surface-inverted/80 text-text-inverted shadow-sm backdrop-blur-sm transition-colors hover:bg-surface-inverted/95"
             style={{ top: "50%", transform: "translateY(-50%)" }}
           >
-            <ChevronRight className="w-5 h-5 text-white dark:text-gray-900" />
+            <ChevronRight className="h-5 w-5" />
           </button>
         )}
       </div>
     </nav>
   );
 }
-

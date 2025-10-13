@@ -14,6 +14,8 @@ import { Database, TrendingUp, AlertTriangle, CheckCircle, Trash2, Lock, LogIn, 
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
+import { PageShell } from "@/components/layout/Page";
+import { cn } from "@/lib/utils";
 
 export function DataPage() {
   const [selectedDataset, setSelectedDataset] = useState<Dataset | null>(null);
@@ -320,24 +322,20 @@ export function DataPage() {
   };
 
   return (
-    <div className="p-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-        </div>
+    <PageShell padding="lg" width="wide" className="space-y-8">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="upload">Quick Upload</TabsTrigger>
+          <TabsTrigger value="preprocess">
+            <Zap className="mr-2 h-4 w-4" />
+            Smart Preprocessing
+          </TabsTrigger>
+        </TabsList>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="upload">Quick Upload</TabsTrigger>
-            <TabsTrigger value="preprocess">
-              <Zap className="w-4 h-4 mr-2" />
-              Smart Preprocessing
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="upload" className="space-y-6">
-            <div className="grid lg:grid-cols-3 gap-6">
-          {/* Upload Section */}
-          <div className="lg:col-span-2 space-y-6">
+        <TabsContent value="upload" className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-3">
+            {/* Upload Section */}
+            <div className="space-y-6 lg:col-span-2">
             {/* Upload Section */}
             <Card>
               <CardHeader>
@@ -371,28 +369,29 @@ export function DataPage() {
                     {datasets.map((dataset: Dataset) => (
                       <div
                         key={dataset.id}
-                        className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                          selectedDataset?.id === dataset.id 
-                            ? 'border-primary bg-primary/5' 
-                            : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-                        }`}
+                        className={cn(
+                          "cursor-pointer rounded-xl border p-4 transition-colors",
+                          selectedDataset?.id === dataset.id
+                            ? "border-primary bg-primary/10 shadow-sm"
+                            : "border-border hover:bg-surface-muted/80",
+                        )}
                         onClick={() => handleDatasetSelect(dataset)}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
-                            <Database className="w-5 h-5 text-blue-500" />
+                            <Database className="h-5 w-5 text-primary" />
                             <div>
-                              <h4 className="font-medium text-gray-900 dark:text-white">
+                              <h4 className="font-medium text-text-primary">
                                 {dataset.originalName}
                               </h4>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                              <p className="text-sm text-text-muted">
                                 {dataset.rowCount.toLocaleString()} rows • {dataset.columns.length} columns • {formatFileSize(dataset.fileSize)}
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center space-x-2">
                             {selectedDataset?.id === dataset.id && (
-                              <CheckCircle className="w-5 h-5 text-green-500" />
+                              <CheckCircle className="h-5 w-5 text-success" />
                             )}
                             {/* Only show delete button for user's own datasets, not demo data */}
                             {user && dataset.userId === user.id && (
@@ -405,7 +404,7 @@ export function DataPage() {
                                     deleteMutation.mutate(dataset.id);
                                   }
                                 }}
-                                className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                className="text-danger hover:bg-danger/10"
                                 disabled={deleteMutation.isPending}
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -422,8 +421,8 @@ export function DataPage() {
 
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
+            {/* Sidebar */}
+            <div className="space-y-6">
             {/* Data Quality */}
             {selectedDataset && (
               <Card>
@@ -440,20 +439,20 @@ export function DataPage() {
                       return (
                         <>
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600 dark:text-gray-300">Missing Values</span>
+                            <span className="text-sm text-text-muted">Missing Values</span>
                             <Badge variant={quality.status === 'good' ? 'default' : 'destructive'}>
                               {quality.missing}
                             </Badge>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600 dark:text-gray-300">Duplicates</span>
-                            <Badge variant="default" className="bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300">
+                            <span className="text-sm text-text-muted">Duplicates</span>
+                            <Badge className="border-success/30 bg-success/10 text-success">
                               {quality.duplicates}
                             </Badge>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600 dark:text-gray-300">Data Types</span>
-                            <Badge variant="default" className="bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300">
+                            <span className="text-sm text-text-muted">Data Types</span>
+                            <Badge className="border-success/30 bg-success/10 text-success">
                               Valid
                             </Badge>
                           </div>
@@ -479,10 +478,10 @@ export function DataPage() {
                       onClick={() => analyzeMutation.mutate(selectedDataset.id)}
                       disabled={analyzeMutation.isPending}
                     >
-                      <TrendingUp className="w-4 h-4 mr-2 text-primary" />
+                      <TrendingUp className="mr-2 h-4 w-4 text-primary" />
                       <div className="text-left">
                         <p className="font-medium">Analyze Dataset</p>
-                        <p className="text-xs text-gray-500">Get statistical insights</p>
+                        <p className="text-xs text-text-subtle">Get statistical insights</p>
                       </div>
                     </Button>
                     
@@ -492,10 +491,10 @@ export function DataPage() {
                       onClick={() => cleanDataMutation.mutate(selectedDataset.id)}
                       disabled={cleanDataMutation.isPending}
                     >
-                      <AlertTriangle className="w-4 h-4 mr-2 text-emerald-600" />
+                      <AlertTriangle className="mr-2 h-4 w-4 text-warning" />
                       <div className="text-left">
                         <p className="font-medium">Clean Missing Values</p>
-                        <p className="text-xs text-gray-500">Auto-detect best method</p>
+                        <p className="text-xs text-text-subtle">Auto-detect best method</p>
                       </div>
                     </Button>
                     
@@ -505,10 +504,10 @@ export function DataPage() {
                       onClick={() => prepareMLMutation.mutate(selectedDataset.id)}
                       disabled={prepareMLMutation.isPending}
                     >
-                      <CheckCircle className="w-4 h-4 mr-2 text-violet-600" />
+                      <CheckCircle className="mr-2 h-4 w-4 text-accent" />
                       <div className="text-left">
                         <p className="font-medium">Prepare for ML</p>
-                        <p className="text-xs text-gray-500">Optimize for modeling</p>
+                        <p className="text-xs text-text-subtle">Optimize for modeling</p>
                       </div>
                     </Button>
                   </div>
@@ -520,11 +519,11 @@ export function DataPage() {
             {!selectedDataset && datasets.length === 0 && (
               <Card>
                 <CardContent className="p-6 text-center">
-                  <Database className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-500 dark:text-gray-400 mb-4">
+                  <Database className="mx-auto mb-4 h-12 w-12 text-text-subtle" />
+                  <p className="mb-4 text-text-muted">
                     Upload your first dataset to get started
                   </p>
-                  <p className="text-sm text-gray-400 dark:text-gray-500">
+                  <p className="text-sm text-text-subtle">
                     Supported formats: CSV, Excel
                   </p>
                 </CardContent>
@@ -539,7 +538,7 @@ export function DataPage() {
             <CardHeader>
                                 <div className="flex items-center justify-between">
                     <CardTitle>Data Preview</CardTitle>
-                    <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center space-x-2 text-sm text-text-subtle">
                       <span>{selectedDataset.rowCount.toLocaleString()} rows</span>
                       <span>•</span>
                       <span>{selectedDataset.columns.length} columns</span>
@@ -564,43 +563,42 @@ export function DataPage() {
               initialDataset={selectedDataset || undefined}
             />
           </TabsContent>
-        </Tabs>
-      </div>
+      </Tabs>
 
       {/* Authentication Prompt Dialog */}
       {showUploadPrompt && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md mx-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-surface-inverted/60 backdrop-blur-sm">
+          <Card className="mx-4 w-full max-w-md">
             <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900">
-                <Lock className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-warning/15 text-warning">
+                <Lock className="h-6 w-6" />
               </div>
               <CardTitle>Sign In Required</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {pendingFile && (
-                <div className="bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg p-3">
-                  <p className="text-sm text-orange-800 dark:text-orange-200 font-medium">
+                <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-warning">
+                  <p className="text-sm font-medium">
                     File ready: {pendingFile.name}
                   </p>
-                  <p className="text-xs text-orange-600 dark:text-orange-300 mt-1">
+                  <p className="mt-1 text-xs">
                     After signing in, this file will be automatically uploaded
                   </p>
                 </div>
               )}
               
               {pendingPreprocessedData && (
-                <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-3">
-                  <p className="text-sm text-green-800 dark:text-green-200 font-medium">
+                <div className="rounded-lg border border-success/40 bg-success/10 p-3 text-success">
+                  <p className="text-sm font-medium">
                     Processed dataset ready: {pendingPreprocessedData.result.processedRows} rows, {pendingPreprocessedData.result.columns.length} columns
                   </p>
-                  <p className="text-xs text-green-600 dark:text-green-300 mt-1">
+                  <p className="mt-1 text-xs">
                     Your processed data will be saved automatically after signing in
                   </p>
                 </div>
               )}
               
-              <p className="text-center text-gray-600 dark:text-gray-300">
+              <p className="text-center text-text-muted">
                 {pendingPreprocessedData ? 
                   "Sign in to save your processed dataset to your personal collection. You'll find it in the Quick Upload tab after saving." :
                   pendingFile ?
@@ -627,7 +625,7 @@ export function DataPage() {
               </div>
 
               <div className="text-center">
-                <p className="text-xs text-gray-500 dark:text-gray-400">
+                <p className="text-xs text-text-subtle">
                   Demo datasets include sales, e-commerce, and financial data for testing
                 </p>
               </div>
@@ -635,6 +633,6 @@ export function DataPage() {
           </Card>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

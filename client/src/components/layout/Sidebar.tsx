@@ -219,7 +219,7 @@ export function Sidebar({ isOpen, onClose, width, onWidthChange }: SidebarProps)
       {/* Mobile overlay */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+          className="fixed inset-0 z-30 bg-surface-inverted/60 backdrop-blur-sm lg:hidden"
           onClick={onClose}
         />
       )}
@@ -227,7 +227,7 @@ export function Sidebar({ isOpen, onClose, width, onWidthChange }: SidebarProps)
       {/* Sidebar */}
       <div
         className={cn(
-          "fixed left-0 top-0 h-full bg-white dark:bg-[#0F1419] border-r border-[#EFF3F4] dark:border-[#1F2B3A] z-40 transform transition-transform duration-300 shadow-[0_0_12px_rgba(15,20,25,0.08)] flex flex-col",
+          "fixed left-0 top-0 z-40 flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-lg backdrop-blur transition-transform duration-300",
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
         style={{ width }}
@@ -235,34 +235,36 @@ export function Sidebar({ isOpen, onClose, width, onWidthChange }: SidebarProps)
         aria-label="Main navigation sidebar"
       >
         {/* Logo */}
-        <div className="flex items-center justify-between h-16 px-6 border-b border-[#EFF3F4] dark:border-[#1F2B3A]">
+        <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-6">
           <a 
             href="https://monotech-xzp1.onrender.com/" 
             target="_blank" 
             rel="noopener noreferrer"
-            className="flex items-center space-x-3 hover:opacity-80 transition-opacity cursor-pointer group"
+            className="group flex cursor-pointer items-center gap-3 transition-opacity hover:opacity-80"
           >
-            <div className="w-9 h-9 rounded-full bg-[#0F1419] dark:bg-white flex items-center justify-center shadow-sm">
-              <Brain className="w-5 h-5 text-white dark:text-[#0F1419]" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-md">
+              <Brain className="h-5 w-5" />
             </div>
-            <span className="font-semibold text-lg text-[#0F1419] dark:text-white tracking-tight">Mono-AI</span>
+            <span className="text-lg font-semibold tracking-tight text-text-primary">
+              Mono-AI
+            </span>
           </a>
           <button 
             onClick={onClose}
-            className="lg:hidden text-[#536471] hover:text-[#0F1419] dark:text-[#8B98A5] dark:hover:text-white transition-colors"
+            className="transition-colors hover:text-text-primary lg:hidden"
           >
             ×
           </button>
         </div>
         
         {/* Navigation */}
-        <nav className="flex-1 p-4 pr-5 overflow-y-auto relative space-y-6" role="navigation">
+        <nav className="relative flex-1 space-y-6 overflow-y-auto p-4 pr-5" role="navigation">
           {/* Back Button */}
           {selectedSection && (
             <div className="mb-4">
               <button
                 onClick={handleBackClick}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-[#536471] dark:text-[#8B98A5] hover:text-[#0F1419] dark:hover:text-white transition-colors"
+                className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-text-muted transition-colors hover:text-text-primary"
               >
                 <ChevronLeft className="w-4 h-4" />
                 <span className="text-sm font-medium">Back</span>
@@ -286,36 +288,34 @@ export function Sidebar({ isOpen, onClose, width, onWidthChange }: SidebarProps)
                 const isActive = isExpanded || matchesLocation;
 
                 const actionClasses = cn(
-                  "w-full flex items-center gap-3 px-4 py-3 rounded-2xl group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9BF0]/30 transition-colors",
+                  "group flex w-full items-center gap-3 rounded-2xl px-4 py-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
                   isActive
-                    ? "bg-[#EFF3F4] text-[#0F1419] dark:bg-[#1D2733] dark:text-[#F7F9F9]"
-                    : "text-[#536471] dark:text-[#8B98A5] hover:bg-[#F7F9F9] hover:text-[#0F1419] dark:hover:bg-[#1D2733] dark:hover:text-[#F7F9F9]"
+                    ? "bg-primary/10 text-text-primary"
+                    : "text-text-muted hover:bg-primary/5 hover:text-text-primary"
                 );
 
                 const iconClasses = cn(
-                  "w-5 h-5 transition-colors",
+                  "h-5 w-5 transition-colors",
                   isActive
-                    ? "text-[#0F1419] dark:text-white"
-                    : "text-[#536471] dark:text-[#8B98A5] group-hover:text-[#0F1419] dark:group-hover:text-white"
+                    ? "text-primary"
+                    : "text-text-muted group-hover:text-text-primary"
                 );
 
                 const titleClasses = cn(
-                  "text-sm font-semibold transition-colors",
-                  isActive
-                    ? "text-[#0F1419] dark:text-white"
-                    : "text-[#0F1419] dark:text-white"
+                  "text-sm font-semibold text-text-primary transition-colors",
+                  isActive ? "text-text-primary" : ""
                 );
 
                 const descriptionClasses = cn(
-                  "text-xs text-[#536471] dark:text-[#8B98A5] transition-colors",
-                  isActive ? "text-[#536471] dark:text-[#8B98A5]" : "group-hover:text-[#0F1419] dark:group-hover:text-white"
+                  "text-xs text-text-muted transition-colors",
+                  isActive ? "text-text-muted" : "group-hover:text-text-soft"
                 );
 
                 const chevronClasses = cn(
-                  "w-4 h-4 transition-colors",
+                  "h-4 w-4 transition-colors",
                   isActive
-                    ? "text-[#0F1419] dark:text-white"
-                    : "text-[#AAB8C2] dark:text-[#657786] group-hover:text-[#0F1419] dark:group-hover:text-white"
+                    ? "text-primary"
+                    : "text-text-subtle group-hover:text-text-primary"
                 );
 
                 return (
@@ -367,11 +367,11 @@ export function Sidebar({ isOpen, onClose, width, onWidthChange }: SidebarProps)
             <div>
               {/* Section Header */}
               <div className="mb-3">
-                <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#EFF3F4] dark:bg-[#1D2733] text-[#0F1419] dark:text-[#F7F9F9]">
+                <div className="flex items-center gap-3 rounded-2xl bg-primary/10 px-4 py-3 text-text-primary">
                   {SelectedSectionIcon ? (
-                    <SelectedSectionIcon className="w-5 h-5 text-[#0F1419] dark:text-[#F7F9F9]" />
+                    <SelectedSectionIcon className="h-5 w-5 text-primary" />
                   ) : null}
-                  <span className="font-semibold text-sm text-gray-900 dark:text-white">
+                  <span className="text-sm font-semibold text-text-primary">
                     {selectedSectionData.name}
                   </span>
                 </div>
@@ -384,29 +384,29 @@ export function Sidebar({ isOpen, onClose, width, onWidthChange }: SidebarProps)
                   const Icon = subsection.icon;
                   
                   const subsectionClasses = cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-2xl group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9BF0]/30 transition-colors",
+                    "group flex items-center gap-3 rounded-2xl px-4 py-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
                     isActive
-                      ? "bg-[#EFF3F4] text-[#0F1419] dark:bg-[#1D2733] dark:text-[#F7F9F9]"
-                      : "text-[#536471] dark:text-[#8B98A5] hover:bg-[#F7F9F9] hover:text-[#0F1419] dark:hover:bg-[#1D2733] dark:hover:text-[#F7F9F9]"
+                      ? "bg-primary/10 text-text-primary"
+                      : "text-text-muted hover:bg-primary/5 hover:text-text-primary"
                   );
 
                   const subsectionIconClasses = cn(
-                    "w-4 h-4 transition-colors",
+                    "h-4 w-4 transition-colors",
                     isActive
-                      ? "text-[#0F1419] dark:text-[#F7F9F9]"
-                      : "text-[#536471] dark:text-[#8B98A5] group-hover:text-[#0F1419] dark:group-hover:text-[#F7F9F9]"
+                      ? "text-primary"
+                      : "text-text-muted group-hover:text-text-primary"
                   );
 
                   const subsectionDescriptionClasses = cn(
-                    "text-xs text-[#536471] dark:text-[#8B98A5] transition-colors",
-                    isActive ? "text-[#536471] dark:text-[#8B98A5]" : "group-hover:text-[#0F1419] dark:group-hover:text-[#F7F9F9]"
+                    "text-xs text-text-muted transition-colors",
+                    isActive ? "text-text-muted" : "group-hover:text-text-soft"
                   );
                   
                   const subsectionChevronClasses = cn(
-                    "w-4 h-4 transition-colors",
+                    "h-4 w-4 transition-colors",
                     isActive
-                      ? "text-[#0F1419] dark:text-[#F7F9F9]"
-                      : "text-[#AAB8C2] dark:text-[#657786] group-hover:text-[#0F1419] dark:group-hover:text-[#F7F9F9]"
+                      ? "text-primary"
+                      : "text-text-subtle group-hover:text-text-primary"
                   );
 
                   return (
@@ -454,7 +454,7 @@ export function Sidebar({ isOpen, onClose, width, onWidthChange }: SidebarProps)
         <div
           className={cn(
             "absolute inset-y-0 left-0 w-full bg-transparent transition-colors",
-            isResizing ? "bg-[#1D9BF0]/70" : "group-hover:bg-[#1D9BF0]/50"
+            isResizing ? "bg-primary/60" : "group-hover:bg-primary/40"
           )}
         />
       </div>

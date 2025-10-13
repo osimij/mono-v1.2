@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -7,10 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Users, Target, PieChart, BarChart3, Play, Download, Filter, Database, Settings, RefreshCw } from "lucide-react";
+import { Target, PieChart, BarChart3, Play, Download, Filter, Database, Settings, RefreshCw } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Dataset } from "@/types";
+import { PageHeader, PageSection, PageShell } from "@/components/layout/Page";
 
 interface DataSegment {
   name: string;
@@ -71,7 +72,7 @@ export function SegmentationCustomersPage() {
       return [{
         name: "All Data",
         count: data.length,
-        color: "bg-blue-500",
+        color: "bg-primary",
         description: "No numeric columns found for segmentation",
         avgValues: {},
         minValues: {},
@@ -85,8 +86,14 @@ export function SegmentationCustomersPage() {
     ];
 
     const colors = [
-      "bg-blue-500", "bg-green-500", "bg-yellow-500", "bg-red-500", 
-      "bg-purple-500", "bg-pink-500", "bg-indigo-500", "bg-orange-500"
+      "bg-primary",
+      "bg-success",
+      "bg-secondary",
+      "bg-warning",
+      "bg-accent",
+      "bg-info",
+      "bg-primary/70",
+      "bg-success/70",
     ];
 
     const descriptions = [
@@ -386,340 +393,374 @@ export function SegmentationCustomersPage() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center space-x-3 mb-6">
-        <Users className="w-8 h-8 text-primary" />
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Data Segmentation</h1>
-          <p className="text-gray-600 dark:text-gray-300">Segment your data for better analysis and insights</p>
-        </div>
-      </div>
+    <PageShell padding="lg">
+      <PageHeader
+        eyebrow="Segmentation"
+        title="Customer segmentation"
+        description="Segment your datasets to surface distinct groups and export the results."
+      />
 
-      {/* Dataset Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Database className="w-5 h-5 text-primary" />
-            <span>Select Dataset</span>
-          </CardTitle>
-          <CardDescription>Choose a dataset to segment</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {datasetsLoading ? (
-            <div className="flex items-center space-x-2">
-              <RefreshCw className="w-4 h-4 animate-spin" />
-              <span>Loading datasets...</span>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {datasets.map((dataset) => (
-                <Card 
-                  key={dataset.id}
-                  className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${
-                    selectedDataset?.id === dataset.id ? "ring-2 ring-primary bg-primary/5" : ""
-                  }`}
-                  onClick={() => setSelectedDataset(dataset)}
-                >
-                  <CardContent className="p-4">
-                                          <h3 className="font-semibold text-gray-900 dark:text-white">{dataset.originalName}</h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {dataset.rowCount} rows • {dataset.columns.length} columns
-                      </p>
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {dataset.columns.slice(0, 3).map(col => (
-                        <Badge key={col} variant="outline" className="text-xs">
-                          {col}
-                        </Badge>
-                      ))}
-                      {dataset.columns.length > 3 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{dataset.columns.length - 3} more
-                        </Badge>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {selectedDataset && (
-        <>
-          {/* Segmentation Methods */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${
-              config.method === "kmeans" ? "ring-2 ring-primary bg-primary/5" : ""
-            }`} onClick={() => setConfig(prev => ({ ...prev, method: 'kmeans' }))}>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Target className="w-5 h-5 text-blue-500" />
-                  <span>K-Means</span>
-                </CardTitle>
-                <CardDescription>Clustering by similarity</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Groups similar data points together using distance-based clustering.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${
-              config.method === "hierarchical" ? "ring-2 ring-primary bg-primary/5" : ""
-            }`} onClick={() => setConfig(prev => ({ ...prev, method: 'hierarchical' }))}>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <PieChart className="w-5 h-5 text-green-500" />
-                  <span>Hierarchical</span>
-                </CardTitle>
-                <CardDescription>Tree-based grouping</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Creates hierarchical groups based on data relationships.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${
-              config.method === "quantile" ? "ring-2 ring-primary bg-primary/5" : ""
-            }`} onClick={() => setConfig(prev => ({ ...prev, method: 'quantile' }))}>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <BarChart3 className="w-5 h-5 text-purple-500" />
-                  <span>Quantile</span>
-                </CardTitle>
-                <CardDescription>Value-based ranges</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Divides data into equal-sized groups based on value ranges.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${
-              config.method === "custom_rules" ? "ring-2 ring-primary bg-primary/5" : ""
-            }`} onClick={() => setConfig(prev => ({ ...prev, method: 'custom_rules' }))}>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Settings className="w-5 h-5 text-orange-500" />
-                  <span>Custom Rules</span>
-                </CardTitle>
-                <CardDescription>User-defined conditions</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Create segments using your own business rules and conditions.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Analysis Configuration */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Filter className="w-5 h-5 text-primary" />
-                <span>Configuration</span>
-              </CardTitle>
-              <CardDescription>Set up segmentation parameters</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="space-y-4">
-                  <Label className="text-sm font-medium">Number of Segments</Label>
-                  <Select 
-                    value={config.numSegments.toString()} 
-                    onValueChange={(value) => setConfig(prev => ({ ...prev, numSegments: parseInt(value) }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[2, 3, 4, 5, 6, 7, 8].map(num => (
-                        <SelectItem key={num} value={num.toString()}>{num} Segments</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-4">
-                  <Label className="text-sm font-medium">Columns to Analyze</Label>
-                  <Select 
-                    value={config.selectedColumns[0] || ""} 
-                    onValueChange={(value) => setConfig(prev => ({ ...prev, selectedColumns: [value] }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select columns" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {selectedDataset.columns.map(col => (
-                        <SelectItem key={col} value={col}>{col}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-4">
-                  <Label className="text-sm font-medium">Minimum Segment Size</Label>
-                  <Slider 
-                    defaultValue={[5]} 
-                    max={20} 
-                    step={1} 
-                    className="w-full"
-                    onValueChange={(value) => console.log(value)}
-                  />
-                  <span className="text-sm text-gray-500">5%</span>
-                </div>
+      <PageSection surface="transparent" contentClassName="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5 text-primary" />
+              <span>Select dataset</span>
+            </CardTitle>
+            <CardDescription>Choose a dataset to analyze</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {datasetsLoading ? (
+              <div className="flex items-center gap-2 text-text-muted">
+                <RefreshCw className="h-4 w-4 animate-spin text-text-subtle" />
+                <span>Loading datasets…</span>
               </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {datasets.map((dataset) => (
+                  <Card
+                    key={dataset.id}
+                    className={`cursor-pointer transition-colors hover:bg-surface-muted ${
+                      selectedDataset?.id === dataset.id
+                        ? "ring-2 ring-primary bg-primary/5"
+                        : "ring-1 ring-border"
+                    }`}
+                    onClick={() => setSelectedDataset(dataset)}
+                  >
+                    <CardContent className="flex flex-col gap-2 p-4">
+                      <h3 className="font-semibold text-text-primary">
+                        {dataset.originalName}
+                      </h3>
+                      <p className="text-sm text-text-muted">
+                        {dataset.rowCount.toLocaleString()} rows • {dataset.columns.length} columns
+                      </p>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        {dataset.columns.slice(0, 3).map((col) => (
+                          <Badge key={col} variant="outline" className="text-xs text-text-soft">
+                            {col}
+                          </Badge>
+                        ))}
+                        {dataset.columns.length > 3 && (
+                          <Badge variant="outline" className="text-xs text-text-soft">
+                            +{dataset.columns.length - 3} more
+                          </Badge>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-              {/* Custom Rules Section */}
-              {config.method === 'custom_rules' && (
-                <div className="mt-6 space-y-4">
-                  <Label className="text-sm font-medium">Custom Rules</Label>
-                  <div className="space-y-2">
-                    {config.customRules?.map((rule, index) => (
-                      <div key={index} className="flex items-center space-x-2 p-2 bg-gray-50 dark:bg-gray-800 rounded">
-                        <span className="text-sm flex-1">{rule}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeCustomRule(index)}
-                          className="text-red-500 hover:text-red-700"
+        {selectedDataset ? (
+          <>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <Card
+                className={`cursor-pointer transition-colors ${
+                  config.method === "kmeans"
+                    ? "ring-2 ring-primary bg-primary/5"
+                    : "ring-1 ring-border hover:bg-surface-muted"
+                }`}
+                onClick={() => setConfig((prev) => ({ ...prev, method: "kmeans" }))}
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5 text-primary" />
+                    <span>K-Means</span>
+                  </CardTitle>
+                  <CardDescription>Clustering by similarity</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-text-muted">
+                    Groups similar data points together using distance-based clustering.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card
+                className={`cursor-pointer transition-colors ${
+                  config.method === "hierarchical"
+                    ? "ring-2 ring-primary bg-primary/5"
+                    : "ring-1 ring-border hover:bg-surface-muted"
+                }`}
+                onClick={() => setConfig((prev) => ({ ...prev, method: "hierarchical" }))}
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <PieChart className="h-5 w-5 text-success" />
+                    <span>Hierarchical</span>
+                  </CardTitle>
+                  <CardDescription>Tree-based grouping</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-text-muted">
+                    Creates hierarchical groups based on data relationships.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card
+                className={`cursor-pointer transition-colors ${
+                  config.method === "quantile"
+                    ? "ring-2 ring-primary bg-primary/5"
+                    : "ring-1 ring-border hover:bg-surface-muted"
+                }`}
+                onClick={() => setConfig((prev) => ({ ...prev, method: "quantile" }))}
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-accent" />
+                    <span>Quantile</span>
+                  </CardTitle>
+                  <CardDescription>Value-based ranges</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-text-muted">
+                    Divides data into equal-sized groups based on value ranges.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card
+                className={`cursor-pointer transition-colors ${
+                  config.method === "custom_rules"
+                    ? "ring-2 ring-primary bg-primary/5"
+                    : "ring-1 ring-border hover:bg-surface-muted"
+                }`}
+                onClick={() => setConfig((prev) => ({ ...prev, method: "custom_rules" }))}
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Settings className="h-5 w-5 text-warning" />
+                    <span>Custom rules</span>
+                  </CardTitle>
+                  <CardDescription>User-defined conditions</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-text-muted">
+                    Create segments using your own business rules and conditions.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Filter className="h-5 w-5 text-primary" />
+                  <span>Configuration</span>
+                </CardTitle>
+                <CardDescription>Set up segmentation parameters</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  <div className="space-y-4">
+                    <Label className="text-sm font-medium text-text-soft">Number of segments</Label>
+                    <Select
+                      value={config.numSegments.toString()}
+                      onValueChange={(value) =>
+                        setConfig((prev) => ({ ...prev, numSegments: parseInt(value, 10) }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[2, 3, 4, 5, 6, 7, 8].map((num) => (
+                          <SelectItem key={num} value={num.toString()}>
+                            {num} segments
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-4">
+                    <Label className="text-sm font-medium text-text-soft">Columns to analyze</Label>
+                    <Select
+                      value={config.selectedColumns[0] || ""}
+                      onValueChange={(value) =>
+                        setConfig((prev) => ({ ...prev, selectedColumns: [value] }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select columns" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {selectedDataset.columns.map((col) => (
+                          <SelectItem key={col} value={col}>
+                            {col}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-4">
+                    <Label className="text-sm font-medium text-text-soft">Minimum segment size</Label>
+                    <Slider defaultValue={[5]} max={20} step={1} className="w-full" />
+                    <span className="text-sm text-text-subtle">5%</span>
+                  </div>
+                </div>
+
+                {config.method === "custom_rules" && (
+                  <div className="mt-6 space-y-4">
+                    <Label className="text-sm font-medium text-text-soft">Custom rules</Label>
+                    <div className="space-y-2">
+                      {config.customRules?.map((rule, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center gap-2 rounded-lg bg-surface-muted p-2 ring-1 ring-border/60"
                         >
-                          Remove
-                        </Button>
+                          <span className="flex-1 text-sm text-text-primary">{rule}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeCustomRule(index)}
+                            className="text-danger hover:text-danger/80"
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        value={customRule}
+                        onChange={(e) => setCustomRule(e.target.value)}
+                        placeholder="Enter rule (e.g., quantity > 100)"
+                        className="flex-1"
+                      />
+                      <Button size="sm" onClick={addCustomRule}>
+                        Add rule
+                      </Button>
+                    </div>
+                    <p className="text-xs text-text-subtle">
+                      Use column names and comparison operators (e.g., &quot;quantity &gt; 100 AND price &lt; 50&quot;)
+                    </p>
+                  </div>
+                )}
+
+                <div className="mt-6 flex flex-wrap gap-4">
+                  <Button
+                    onClick={handleAnalyze}
+                    disabled={isAnalyzing || config.selectedColumns.length === 0}
+                    className="flex items-center gap-2"
+                  >
+                    {isAnalyzing ? (
+                      <RefreshCw className="h-4 w-4 animate-spin text-text-subtle" />
+                    ) : (
+                      <Play className="h-4 w-4" />
+                    )}
+                    <span>{isAnalyzing ? "Analyzing…" : "Run analysis"}</span>
+                  </Button>
+
+                  {analysisComplete && (
+                    <Button variant="outline" onClick={handleExport} className="flex items-center gap-2">
+                      <Download className="h-4 w-4" />
+                      <span>Export results</span>
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {analysisComplete && segments.length > 0 ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Segmentation results</CardTitle>
+                  <CardDescription>
+                    View your data segments and their characteristics
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-8">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    {segments.map((segment) => (
+                      <div
+                        key={segment.name}
+                        className="rounded-xl bg-surface-muted p-4 text-center ring-1 ring-border/60"
+                      >
+                        <div className={`mx-auto mb-2 h-4 w-4 rounded-full ${segment.color}`} />
+                        <h3 className="font-semibold text-text-primary">{segment.name}</h3>
+                        <p className="text-2xl font-bold text-primary">
+                          {segment.count.toLocaleString()}
+                        </p>
+                        <p className="text-sm text-text-muted">items</p>
+                        <p className="mt-1 text-xs text-text-subtle">{segment.description}</p>
                       </div>
                     ))}
                   </div>
-                  <div className="flex space-x-2">
-                    <Input
-                      value={customRule}
-                      onChange={(e) => setCustomRule(e.target.value)}
-                      placeholder="Enter rule (e.g., quantity > 100)"
-                      className="flex-1"
-                    />
-                    <Button size="sm" onClick={addCustomRule}>Add Rule</Button>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    Use column names and comparison operators (e.g., &quot;quantity &gt; 100 AND price &lt; 50&quot;)
-                  </p>
-                </div>
-              )}
 
-              <div className="flex space-x-4 mt-6">
-                <Button 
-                  onClick={handleAnalyze}
-                  disabled={isAnalyzing || config.selectedColumns.length === 0}
-                  className="flex items-center space-x-2"
-                >
-                  {isAnalyzing ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Play className="w-4 h-4" />
-                  )}
-                  <span>{isAnalyzing ? "Analyzing..." : "Run Analysis"}</span>
-                </Button>
-                
-                {analysisComplete && (
-                  <Button 
-                    variant="outline"
-                    onClick={handleExport}
-                    className="flex items-center space-x-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>Export Results</span>
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Segmentation Results */}
-          {analysisComplete && segments.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Segmentation Results</CardTitle>
-                <CardDescription>View your data segments and their characteristics</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                  {segments.map((segment) => (
-                    <div key={segment.name} className="text-center p-4 rounded-lg bg-gray-50 dark:bg-gray-800">
-                      <div className={`w-4 h-4 ${segment.color} rounded-full mx-auto mb-2`}></div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white">{segment.name}</h3>
-                      <p className="text-2xl font-bold text-primary">{segment.count.toLocaleString()}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">items</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{segment.description}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Detailed Segment Information */}
-                <div className="space-y-4">
-                  {segments.map((segment) => (
-                    <Card key={segment.name} className="border-l-4 border-l-gray-200">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div className={`w-3 h-3 ${segment.color} rounded-full`}></div>
-                            <div>
-                              <h4 className="font-semibold text-gray-900 dark:text-white">{segment.name}</h4>
-                              <p className="text-sm text-gray-600 dark:text-gray-400">{segment.description}</p>
+                  <div className="space-y-4">
+                    {segments.map((segment) => (
+                      <Card key={segment.name} className="border-l-4 border-l-border">
+                        <CardContent className="flex flex-col gap-4 p-4">
+                          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={`h-3 w-3 rounded-full ${segment.color}`} />
+                              <div>
+                                <h4 className="font-semibold text-text-primary">{segment.name}</h4>
+                                <p className="text-sm text-text-muted">{segment.description}</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-lg font-bold text-primary">
+                                {segment.count.toLocaleString()}
+                              </p>
+                              <p className="text-sm text-text-muted">items</p>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-lg font-bold text-primary">{segment.count.toLocaleString()}</p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">items</p>
-                          </div>
-                        </div>
-                        
-                        {Object.keys(segment.avgValues).length > 0 && (
-                          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                            <h5 className="font-medium text-gray-900 dark:text-white mb-3">Column Statistics</h5>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                              {Object.keys(segment.avgValues).map(column => (
-                                <div key={column} className="space-y-2">
-                                  <h6 className="text-sm font-medium text-gray-700 dark:text-gray-300">{column}</h6>
-                                  <div className="grid grid-cols-3 gap-2 text-xs">
-                                    <div>
-                                      <p className="text-gray-500">Min</p>
-                                      <p className="font-medium">{segment.minValues[column]?.toFixed(2)}</p>
-                                    </div>
-                                    <div>
-                                      <p className="text-gray-500">Avg</p>
-                                      <p className="font-medium">{segment.avgValues[column]?.toFixed(2)}</p>
-                                    </div>
-                                    <div>
-                                      <p className="text-gray-500">Max</p>
-                                      <p className="font-medium">{segment.maxValues[column]?.toFixed(2)}</p>
+
+                          {Object.keys(segment.avgValues).length > 0 && (
+                            <div className="border-t border-border pt-4">
+                              <h5 className="mb-3 font-medium text-text-primary">Column statistics</h5>
+                              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                {Object.keys(segment.avgValues).map((column) => (
+                                  <div key={column} className="space-y-2">
+                                    <h6 className="text-sm font-medium text-text-soft">{column}</h6>
+                                    <div className="grid grid-cols-3 gap-2 text-xs">
+                                      <div>
+                                        <p className="text-text-subtle">Min</p>
+                                        <p className="font-medium text-text-primary">
+                                          {segment.minValues[column]?.toFixed(2)}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-text-subtle">Avg</p>
+                                        <p className="font-medium text-text-primary">
+                                          {segment.avgValues[column]?.toFixed(2)}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-text-subtle">Max</p>
+                                        <p className="font-medium text-text-primary">
+                                          {segment.maxValues[column]?.toFixed(2)}
+                                        </p>
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              ))}
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </>
-      )}
-
-      {!selectedDataset && (
-        <Alert>
-          <AlertDescription>
-            Please select a dataset to begin segmentation analysis.
-          </AlertDescription>
-        </Alert>
-      )}
-    </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
+          </>
+        ) : (
+          <Alert variant="outline">
+            <AlertDescription>
+              Please select a dataset to begin segmentation analysis.
+            </AlertDescription>
+          </Alert>
+        )}
+      </PageSection>
+    </PageShell>
   );
 }

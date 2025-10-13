@@ -1,15 +1,14 @@
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Table as UITable, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DataPreprocessor } from "@/components/DataPreprocessor";
-import { Database, Sparkles, Brain, Search as SearchIcon, FileText, Eye, Table, BarChart3, Calendar, ArrowLeft } from "lucide-react";
+import { Database, Search as SearchIcon, Eye, Table as TableIcon } from "lucide-react";
 import { api } from "@/lib/api";
-import { Link } from "wouter";
+import { PageHeader, PageSection, PageShell } from "@/components/layout/Page";
 
 interface Dataset {
   id: number;
@@ -23,20 +22,67 @@ interface Dataset {
   data?: any[];
 }
 
+const CLEANING_STEPS = [
+  { id: 1, label: "Select dataset" },
+  { id: 2, label: "Configure options" },
+  { id: 3, label: "Get clean data" }
+] as const;
+
+const LIGHT_MODE_TASKS = [
+  {
+    title: "Remove empty rows and columns",
+    tooltip: "Drop rows or columns that are completely empty."
+  },
+  {
+    title: "Handle missing values",
+    tooltip: "Fill or drop nulls using sensible defaults."
+  },
+  {
+    title: "Remove duplicates",
+    tooltip: "Drop exact duplicate rows."
+  },
+  {
+    title: "Basic data validation",
+    tooltip: "Ensure consistent data types and value ranges."
+  }
+] as const;
+
+const PRO_MODE_TASKS = [
+  {
+    title: "Smart categorical encoding",
+    tooltip: "Automatically encode categorical features for ML readiness."
+  },
+  {
+    title: "Outlier detection and removal",
+    tooltip: "Identify and optionally remove extreme values."
+  },
+  {
+    title: "Feature scaling and normalization",
+    tooltip: "Standardize numeric features for improved modeling."
+  },
+  {
+    title: "Advanced text processing",
+    tooltip: "Tokenize, clean, and vectorize text columns."
+  },
+  {
+    title: "Data type conversion",
+    tooltip: "Coerce columns to expected types."
+  }
+] as const;
+
 export function DataCleaningPage() {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [selectedDataset, setSelectedDataset] = useState<Dataset | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showPreprocessor, setShowPreprocessor] = useState(false);
-  const [currentStep, setCurrentStep] = useState<number>(1); // 1 Select, 2 Configure, 3 Get Clean Data
-  const [mode, setMode] = useState<'light' | 'pro'>('light');
+  const [currentStep, setCurrentStep] = useState<number>(1);
+  const [mode, setMode] = useState<"light" | "pro">("light");
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoadingDataset, setIsLoadingDataset] = useState(false);
-  const [previewRowCount, setPreviewRowCount] = useState<number>(5);
+  const [previewRowCount] = useState<number>(5);
   const [cleanedNewCount, setCleanedNewCount] = useState<number>(0);
 
-  // Fetch datasets for selection
   useEffect(() => {
     const fetchDatasets = async () => {
       try {
@@ -45,8 +91,8 @@ export function DataCleaningPage() {
         const data = await api.datasets.getAll();
         setDatasets(data);
       } catch (err) {
-        console.error('Error fetching datasets:', err);
-        setError('Failed to load datasets. Please try again.');
+        console.error("Error fetching datasets:", err);
+        setError("Failed to load datasets. Please try again.");
       } finally {
         setIsLoading(false);
       }
@@ -54,6 +100,15 @@ export function DataCleaningPage() {
 
     fetchDatasets();
   }, []);
+
+  const filteredDatasets = useMemo(() => {
+    if (!searchTerm) return datasets;
+    const term = searchTerm.toLowerCase();
+    return datasets.filter((dataset) =>
+      dataset.originalName.toLowerCase().includes(term) ||
+      dataset.filename.toLowerCase().includes(term)
+    );
+  }, [datasets, searchTerm]);
 
   const handleDatasetSelect = async (dataset: Dataset) => {
     try {
@@ -63,290 +118,366 @@ export function DataCleaningPage() {
       setSelectedDataset(details);
       setCurrentStep(2);
     } catch (err) {
-      console.error('Error fetching dataset details:', err);
-      setError('Failed to load dataset details.');
+      console.error("Error fetching dataset details:", err);
+      setError("Failed to load dataset details.");
     } finally {
       setIsLoadingDataset(false);
     }
   };
 
-  const handlePreprocessingComplete = (data: any, options: any) => {
-    // Handle the completed preprocessing
-    console.log('Preprocessing completed:', { data, options });
-    // You can redirect to another page or show success message
+  const handlePreprocessingComplete = () => {
     setShowPreprocessor(false);
     setCurrentStep(3);
-    setCleanedNewCount((c) => c + 1);
+    setCleanedNewCount((count) => count + 1);
   };
 
   const handleBackToSelection = () => {
     setShowPreprocessor(false);
     setSelectedDataset(null);
+    setCurrentStep(1);
   };
 
   if (showPreprocessor && selectedDataset) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center space-x-3 mb-6">
-          <Database className="w-8 h-8 text-primary" />
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Data Cleaning</h1>
-            <p className="text-gray-600 dark:text-gray-300">Clean and prepare your data for analysis</p>
-          </div>
-        </div>
-
-        <DataPreprocessor
-          onComplete={handlePreprocessingComplete}
-          onBack={handleBackToSelection}
-          datasets={datasets}
-          initialDataset={selectedDataset}
+      <PageShell padding="lg" width="wide">
+        <PageHeader
+          eyebrow="Preparation"
+          title="Data cleaning"
+          description="Apply configurable cleaning pipelines and export ready-to-use datasets."
         />
-      </div>
+        <PageSection surface="transparent">
+          <DataPreprocessor
+            onComplete={handlePreprocessingComplete}
+            onBack={handleBackToSelection}
+            datasets={datasets}
+            initialDataset={selectedDataset}
+          />
+        </PageSection>
+      </PageShell>
     );
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center space-x-3 mb-6">
-        <Database className="w-8 h-8 text-primary" />
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Data Cleaning</h1>
-          <p className="text-gray-600 dark:text-gray-300">Clean and prepare your data for analysis</p>
-        </div>
-      </div>
+    <PageShell padding="lg" width="wide">
+      <PageHeader
+        eyebrow="Preparation"
+        title="Data cleaning"
+        description="Select a dataset, configure cleaning options, and export the polished result."
+      />
 
-      {/* Interactive Stepper */}
-      <Card>
-        <CardContent className="py-4">
-          <div className="flex items-center justify-between">
-            {[1,2,3].map((step) => (
-              <button
-                key={step}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded transition-colors ${currentStep === step ? 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300' : 'hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}
-                onClick={() => setCurrentStep(step)}
-              >
-                <span className="flex items-center justify-center w-6 h-6 rounded-full border border-current text-sm font-semibold">{step}</span>
-                <span className="text-sm font-medium">
-                  {step === 1 ? 'Select Dataset' : step === 2 ? 'Configure Options' : 'Get Clean Data'}
-                </span>
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <PageSection surface="transparent" contentClassName="space-y-6">
+        <Card>
+          <CardContent className="py-4">
+            <div className="flex items-center gap-3">
+              {CLEANING_STEPS.map((step, index) => {
+                const isActive = currentStep === step.id;
+                const isLast = index === CLEANING_STEPS.length - 1;
+                return (
+                  <div key={step.id} className="flex flex-1 items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(step.id)}
+                      className={`flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                        isActive
+                          ? "border-primary/50 bg-primary/10 text-primary shadow-xs"
+                          : "border-transparent text-text-muted hover:bg-surface-muted"
+                      }`}
+                    >
+                      <span className={`flex h-6 w-6 items-center justify-center rounded-full border text-xs font-semibold ${
+                        isActive ? "border-primary bg-primary text-primary-foreground" : "border-border text-text-muted"
+                      }`}>
+                        {step.id}
+                      </span>
+                      <span>{step.label}</span>
+                    </button>
+                    {!isLast && <div className="hidden flex-1 border-t border-dashed border-border/80 md:block" />}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Mode Selection Tabs */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <span>Mode</span>
-          </CardTitle>
-          <CardDescription>Select a mode and configure its options</CardDescription>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <Tabs value={mode} onValueChange={(v) => setMode(v as 'light' | 'pro')}>
-            <TabsList>
-              <TabsTrigger value="light">Light Mode</TabsTrigger>
-              <TabsTrigger value="pro">Pro Mode</TabsTrigger>
-            </TabsList>
-            <TabsContent value="light" className="pt-3">
-              <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                <li className="flex items-center gap-2">• Remove empty rows and columns
-                  <TooltipProvider><Tooltip><TooltipTrigger className="text-xs">ⓘ</TooltipTrigger><TooltipContent>Drop fully empty rows/columns.</TooltipContent></Tooltip></TooltipProvider>
-                </li>
-                <li className="flex items-center gap-2">• Handle missing values
-                  <TooltipProvider><Tooltip><TooltipTrigger className="text-xs">ⓘ</TooltipTrigger><TooltipContent>Fill or drop nulls using sensible defaults.</TooltipContent></Tooltip></TooltipProvider>
-                </li>
-                <li className="flex items-center gap-2">• Remove duplicates
-                  <TooltipProvider><Tooltip><TooltipTrigger className="text-xs">ⓘ</TooltipTrigger><TooltipContent>Drop exact duplicate rows.</TooltipContent></Tooltip></TooltipProvider>
-                </li>
-                <li className="flex items-center gap-2">• Basic data validation
-                  <TooltipProvider><Tooltip><TooltipTrigger className="text-xs">ⓘ</TooltipTrigger><TooltipContent>Ensure consistent types and ranges.</TooltipContent></Tooltip></TooltipProvider>
-                </li>
-              </ul>
-            </TabsContent>
-            <TabsContent value="pro" className="pt-3">
-              <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                <li className="flex items-center gap-2">• Smart categorical encoding
-                  <TooltipProvider><Tooltip><TooltipTrigger className="text-xs">ⓘ</TooltipTrigger><TooltipContent>Automatically encodes categorical columns for ML readiness.</TooltipContent></Tooltip></TooltipProvider>
-                </li>
-                <li className="flex items-center gap-2">• Outlier detection and removal
-                  <TooltipProvider><Tooltip><TooltipTrigger className="text-xs">ⓘ</TooltipTrigger><TooltipContent>Identify and remove extreme values.</TooltipContent></Tooltip></TooltipProvider>
-                </li>
-                <li className="flex items-center gap-2">• Feature scaling and normalization
-                  <TooltipProvider><Tooltip><TooltipTrigger className="text-xs">ⓘ</TooltipTrigger><TooltipContent>Standardize numeric features.</TooltipContent></Tooltip></TooltipProvider>
-                </li>
-                <li className="flex items-center gap-2">• Advanced text processing
-                  <TooltipProvider><Tooltip><TooltipTrigger className="text-xs">ⓘ</TooltipTrigger><TooltipContent>Tokenize, clean, and vectorize text.</TooltipContent></Tooltip></TooltipProvider>
-                </li>
-                <li className="flex items-center gap-2">• Data type conversion
-                  <TooltipProvider><Tooltip><TooltipTrigger className="text-xs">ⓘ</TooltipTrigger><TooltipContent>Coerce columns to expected types.</TooltipContent></Tooltip></TooltipProvider>
-                </li>
-              </ul>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <span>Mode</span>
+            </CardTitle>
+            <CardDescription>Choose a preset pipeline and review the included steps.</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <Tabs value={mode} onValueChange={(value) => setMode(value as "light" | "pro")}>
+              <TabsList>
+                <TabsTrigger value="light">Light mode</TabsTrigger>
+                <TabsTrigger value="pro">Pro mode</TabsTrigger>
+              </TabsList>
 
-      {/* Dataset Selection with Right Preview */}
-      <Tabs defaultValue="datasets">
-        <div className="flex items-center justify-between mb-2">
-          <TabsList>
-            <TabsTrigger value="datasets">Datasets</TabsTrigger>
-            <TabsTrigger value="cleaned">Cleaned Datasets {cleanedNewCount > 0 && (<Badge className="ml-2" variant="secondary">NEW</Badge>)}</TabsTrigger>
-          </TabsList>
-        </div>
+              <TabsContent value="light" className="pt-4">
+                <FeatureList items={LIGHT_MODE_TASKS} />
+              </TabsContent>
 
-        <TabsContent value="datasets">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[65vh]">
-            <Card className="lg:col-span-5 h-full flex flex-col min-h-0">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Select Dataset to Clean</CardTitle>
-                <CardDescription>Choose a dataset and configure options</CardDescription>
-              </CardHeader>
-              <CardContent className="p-3 pt-0 h-full flex flex-col min-h-0">
-                <div className="relative mb-3">
-                  <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input className="pl-9" placeholder="Search datasets..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                </div>
+              <TabsContent value="pro" className="pt-4">
+                <FeatureList items={PRO_MODE_TASKS} />
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
 
-                {isLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                    <span className="ml-2 text-gray-600 dark:text-gray-400">Loading datasets...</span>
-                  </div>
-                ) : error ? (
-                  <div className="text-center py-8">
-                    <p className="text-red-600 mb-4">{error}</p>
-                    <Button onClick={() => window.location.reload()}>Try Again</Button>
-                  </div>
-                ) : datasets.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Database className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No Datasets Found</h3>
-                    <p className="text-gray-600 dark:text-gray-400 mb-4">Upload a dataset first to start data cleaning.</p>
-                    <div className="space-x-3">
-                      <Button onClick={() => window.location.href = '/data/upload'}>Upload Dataset</Button>
-                      <Button variant="outline" onClick={() => window.location.href = '/data/preview'}>View Datasets</Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex-1 overflow-auto min-h-0">
-                    <table className="w-full text-sm">
-                      <thead className="sticky top-0 bg-background border-b">
-                        <tr>
-                          <th className="p-2.5 text-left border-r border-gray-200 dark:border-gray-700">Name</th>
-                          <th className="w-24 p-2.5 text-left border-r border-gray-200 dark:border-gray-700">Rows</th>
-                          <th className="w-24 p-2.5 text-left border-r border-gray-200 dark:border-gray-700">Columns</th>
-                          <th className="w-28 p-2.5 text-left border-r border-gray-200 dark:border-gray-700">Size</th>
-                          <th className="w-40 p-2.5 text-left">Last updated</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {datasets
-                          .filter(d => !searchTerm || d.originalName.toLowerCase().includes(searchTerm.toLowerCase()) || d.filename.toLowerCase().includes(searchTerm.toLowerCase()))
-                          .map((d) => (
-                          <tr key={d.id} className={`border-b ${selectedDataset?.id === d.id ? 'bg-primary/5' : ''} hover:bg-muted cursor-pointer`} onClick={() => handleDatasetSelect(d)}>
-                            <td className="p-2.5 align-middle border-r border-gray-100 dark:border-gray-800">
-                              <div className="w-full text-left">
-                                <span className="block text-sm font-medium truncate">{d.originalName}</span>
-                                <span className="block text-xs text-gray-500 truncate">{d.filename}</span>
-                              </div>
-                            </td>
-                            <td className="p-2.5 align-middle border-r border-gray-100 dark:border-gray-800">{d.rowCount ? d.rowCount.toLocaleString() : '-'}</td>
-                            <td className="p-2.5 align-middle border-r border-gray-100 dark:border-gray-800">{d.columns ? d.columns.length : '-'}</td>
-                            <td className="p-2.5 align-middle border-r border-gray-100 dark:border-gray-800">{(d.fileSize / 1024).toFixed(1)} KB</td>
-                            <td className="p-2.5 align-middle">{new Date(d.uploadedAt).toLocaleDateString()}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+        <Card>
+          <CardContent className="space-y-4">
+            <Tabs defaultValue="datasets" className="space-y-4">
+              <div className="flex items-center justify-between">
+                <TabsList>
+                  <TabsTrigger value="datasets">Datasets</TabsTrigger>
+                  <TabsTrigger value="cleaned">
+                    Cleaned datasets
+                    {cleanedNewCount > 0 ? (
+                      <Badge variant="secondary" className="ml-2">
+                        NEW
+                      </Badge>
+                    ) : null}
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
-            <Card className="lg:col-span-7 h-full flex flex-col min-h-0">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Eye className="w-4 h-4 text-green-600" />
-                  <span>{selectedDataset ? `Preview: ${selectedDataset.originalName}` : 'Preview'}</span>
-                </CardTitle>
-                {selectedDataset && (
-                  <CardDescription>
-                    {selectedDataset.rowCount ? `${selectedDataset.rowCount.toLocaleString()} rows` : '...'}{selectedDataset.columns && ` × ${selectedDataset.columns.length} columns`}
-                  </CardDescription>
-                )}
-              </CardHeader>
-              <CardContent className="h-full p-3 flex flex-col min-h-0">
-                {!selectedDataset ? (
-                  <div className="text-center py-10 h-full">
-                    <Eye className="w-10 h-10 text-gray-400 mx-auto mb-3" />
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Select a dataset to preview.</p>
-                  </div>
-                ) : isLoadingDataset ? (
-                  <div className="flex items-center justify-center py-8 h-full">
-                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                    <span className="ml-2 text-gray-600 dark:text-gray-400">Loading dataset details...</span>
-                  </div>
-                ) : (
-                  <div className="space-y-3 flex-1 overflow-auto min-h-0">
-                    {selectedDataset.data && selectedDataset.data.length > 0 ? (
-                      <div className="border rounded min-w-max">
-                        <table className="w-full text-xs">
-                          <thead className="bg-gray-50 dark:bg-gray-800">
-                            <tr>
-                              {selectedDataset.columns?.map((c, i) => (
-                                <th key={i} className="text-left p-2 font-medium border-r border-gray-200 dark:border-gray-800 last:border-r-0">{c}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {selectedDataset.data.slice(0, previewRowCount).map((row, idx) => (
-                              <tr key={idx} className="border-t">
-                                {selectedDataset.columns?.map((c, i) => (
-                                  <td key={i} className="p-2 border-r border-gray-100 dark:border-gray-800 last:border-r-0">{row[c] !== null && row[c] !== undefined ? String(row[c]) : '-'}</td>
+              <TabsContent value="datasets" className="space-y-4">
+                <div className="grid gap-4 lg:grid-cols-12">
+                  <Card className="lg:col-span-5 flex min-h-[420px] flex-col">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">Select dataset to clean</CardTitle>
+                      <CardDescription>Pick a dataset and review its details</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-1 flex-col gap-3 overflow-hidden">
+                      <div className="relative">
+                        <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-subtle" />
+                        <Input
+                          value={searchTerm}
+                          onChange={(event) => setSearchTerm(event.target.value)}
+                          placeholder="Search datasets..."
+                          className="pl-9"
+                        />
+                      </div>
+
+                      <div className="flex-1 overflow-hidden rounded-lg border border-border">
+                        {isLoading ? (
+                          <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-text-muted">
+                            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+                            <span>Loading datasets…</span>
+                          </div>
+                        ) : error ? (
+                          <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+                            <span className="text-sm font-medium text-danger">{error}</span>
+                            <Button size="sm" onClick={() => window.location.reload()}>
+                              Try again
+                            </Button>
+                          </div>
+                        ) : filteredDatasets.length === 0 ? (
+                          <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+                            <Database className="h-10 w-10 text-text-subtle" />
+                            <div>
+                              <p className="text-sm font-medium text-text-primary">No datasets found</p>
+                              <p className="text-xs text-text-muted">
+                                Upload a dataset first to start cleaning.
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap justify-center gap-2">
+                              <Button size="sm" onClick={() => (window.location.href = "/data/upload")}>
+                                Upload dataset
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => (window.location.href = "/data/preview")}>
+                                View datasets
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="h-full overflow-auto">
+                            <table className="w-full text-sm">
+                              <thead className="sticky top-0 bg-surface">
+                                <tr>
+                                  <th className="border-b border-border p-2 text-left font-medium text-text-muted">Name</th>
+                                  <th className="w-24 border-b border-border p-2 text-left font-medium text-text-muted">Rows</th>
+                                  <th className="w-24 border-b border-border p-2 text-left font-medium text-text-muted">Columns</th>
+                                  <th className="w-28 border-b border-border p-2 text-left font-medium text-text-muted">Size</th>
+                                  <th className="w-36 border-b border-border p-2 text-left font-medium text-text-muted">Updated</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {filteredDatasets.map((dataset) => {
+                                  const isSelected = selectedDataset?.id === dataset.id;
+                                  return (
+                                    <tr
+                                      key={dataset.id}
+                                      onClick={() => handleDatasetSelect(dataset)}
+                                      className={`cursor-pointer border-b border-border/60 transition-colors ${
+                                        isSelected ? "bg-primary/10" : "hover:bg-surface-muted"
+                                      }`}
+                                    >
+                                      <td className="p-2">
+                                        <div className="flex flex-col">
+                                          <span className="text-sm font-medium text-text-primary truncate">
+                                            {dataset.originalName}
+                                          </span>
+                                          <span className="text-xs text-text-subtle truncate">{dataset.filename}</span>
+                                        </div>
+                                      </td>
+                                      <td className="p-2 text-sm text-text-soft">
+                                        {dataset.rowCount ? dataset.rowCount.toLocaleString() : "—"}
+                                      </td>
+                                      <td className="p-2 text-sm text-text-soft">
+                                        {dataset.columns ? dataset.columns.length : "—"}
+                                      </td>
+                                      <td className="p-2 text-sm text-text-soft">
+                                        {(dataset.fileSize / 1024).toFixed(1)} KB
+                                      </td>
+                                      <td className="p-2 text-sm text-text-soft">
+                                        {new Date(dataset.uploadedAt).toLocaleDateString()}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="lg:col-span-7 flex min-h-[420px] flex-col">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Eye className="h-4 w-4 text-primary" />
+                        <span>{selectedDataset ? `Preview: ${selectedDataset.originalName}` : "Preview"}</span>
+                      </CardTitle>
+                      {selectedDataset ? (
+                        <CardDescription>
+                          {(selectedDataset.rowCount ?? 0).toLocaleString()} rows ·{" "}
+                          {(selectedDataset.columns?.length ?? 0).toLocaleString()} columns
+                        </CardDescription>
+                      ) : (
+                        <CardDescription>Select a dataset to view a quick preview.</CardDescription>
+                      )}
+                    </CardHeader>
+                    <CardContent className="flex flex-1 flex-col overflow-hidden">
+                      {!selectedDataset ? (
+                        <EmptyPreviewState />
+                      ) : isLoadingDataset ? (
+                        <div className="flex h-full flex-col items-center justify-center gap-3 text-text-muted">
+                          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+                          <span>Loading dataset details…</span>
+                        </div>
+                      ) : selectedDataset.data && selectedDataset.data.length > 0 ? (
+                        <div className="flex-1 overflow-auto rounded-lg border border-border">
+                          <table className="w-full min-w-max text-xs">
+                            <thead className="bg-surface-muted">
+                              <tr>
+                                {selectedDataset.columns?.map((column) => (
+                                  <th
+                                    key={column}
+                                    className="border-b border-border p-2 text-left font-medium text-text-soft"
+                                  >
+                                    {column}
+                                  </th>
                                 ))}
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                            </thead>
+                            <tbody>
+                              {selectedDataset.data.slice(0, previewRowCount).map((row, rowIndex) => (
+                                <tr key={rowIndex} className="border-b border-border/40">
+                                  {selectedDataset.columns?.map((column) => (
+                                    <td key={column} className="p-2 text-xs text-text-soft">
+                                      {row[column] !== null && row[column] !== undefined ? String(row[column]) : "—"}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+                          <TableIcon className="h-10 w-10 text-text-subtle" />
+                          <p className="text-sm font-medium text-text-primary">No preview data available</p>
+                          <p className="text-xs text-text-muted">This dataset does not include sample rows.</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="flex flex-wrap justify-end gap-3">
+                  <Button variant="outline" onClick={() => (window.location.href = "/data/preview")}>
+                    Preview datasets
+                  </Button>
+                  <Button onClick={() => setShowPreprocessor(true)} disabled={!selectedDataset}>
+                    Start cleaning
+                  </Button>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="cleaned">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Cleaned datasets</CardTitle>
+                    <CardDescription>Recently cleaned datasets will appear here</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {cleanedNewCount === 0 ? (
+                      <p className="text-sm text-text-soft">No cleaned datasets yet.</p>
                     ) : (
-                      <div className="text-center py-6">
-                        <Table className="w-10 h-10 text-gray-400 mx-auto mb-2" />
-                        <p className="text-xs text-gray-500">No preview data available</p>
-                      </div>
+                      <p className="text-sm text-text-soft">
+                        {cleanedNewCount} cleaned dataset(s) available. Refresh to view updates.
+                      </p>
                     )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      </PageSection>
+    </PageShell>
+  );
+}
 
-          {/* Sticky CTA */}
-          <div className="sticky bottom-2 mt-3 flex justify-end gap-2">
-            <Button variant="outline" onClick={() => window.location.href = '/data/preview'}>Preview datasets</Button>
-            <Button className="bg-orange-600 hover:bg-orange-700" disabled={!selectedDataset} onClick={() => setShowPreprocessor(true)}>Start Cleaning</Button>
-          </div>
-        </TabsContent>
+interface Feature {
+  title: string;
+  tooltip: string;
+}
 
-        <TabsContent value="cleaned">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Cleaned Datasets</CardTitle>
-              <CardDescription>Recently cleaned datasets will appear here</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {cleanedNewCount === 0 ? (
-                <div className="text-sm text-gray-600 dark:text-gray-400">No cleaned datasets yet.</div>
-              ) : (
-                <div className="text-sm">{cleanedNewCount} cleaned dataset(s) available. Refresh to view updates.</div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+function FeatureList({ items }: { items: readonly Feature[] }) {
+  return (
+    <ul className="space-y-3">
+      {items.map(({ title, tooltip }) => (
+        <li key={title} className="flex items-start gap-2 text-sm text-text-soft">
+          <span className="mt-1 text-text-subtle">•</span>
+          <span className="flex-1">
+            {title}
+            <TooltipProvider>
+              <Tooltip delayDuration={150}>
+                <TooltipTrigger asChild>
+                  <span className="ml-2 cursor-help text-xs text-text-subtle underline decoration-dotted">
+                    Info
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-xs text-text-primary">
+                  {tooltip}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function EmptyPreviewState() {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+      <Eye className="h-10 w-10 text-text-subtle" />
+      <p className="text-sm font-medium text-text-primary">No dataset selected</p>
+      <p className="text-xs text-text-muted">Choose a dataset on the left to review a quick preview.</p>
     </div>
   );
 }

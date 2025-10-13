@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Construction, ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
 import { AnalyticsLayout } from "@/components/AnalyticsLayout";
+import { PageHeader, PageSection, PageShell } from "@/components/layout/Page";
 
 interface PlaceholderPageProps {
   title: string;
@@ -12,43 +13,57 @@ interface PlaceholderPageProps {
 
 export function PlaceholderPage({ title, description, icon: Icon, parentPath }: PlaceholderPageProps) {
   const content = (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center space-x-3 mb-6">
-        <Icon className="w-8 h-8 text-primary" />
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{title}</h1>
-          <p className="text-gray-600 dark:text-gray-300">{description}</p>
-        </div>
-      </div>
+    <PageShell padding="lg" width="wide">
+      <PageHeader
+        title={title}
+        description={description}
+        eyebrow="Coming soon"
+        className="items-start text-left"
+        footer={
+          <Link
+            href={parentPath}
+            className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>
+              Back to{" "}
+              {parentPath === "/data"
+                ? "Data Factory"
+                : parentPath === "/segmentation"
+                  ? "Segmentation"
+                  : parentPath === "/analysis"
+                    ? "Analysis"
+                    : parentPath === "/modeling"
+                      ? "ML Modeling"
+                      : parentPath === "/assistant"
+                        ? "AI Assistant"
+                        : "Dashboard"}
+            </span>
+          </Link>
+        }
+      />
 
-      <Card className="max-w-2xl mx-auto bg-white dark:bg-gray-950">
+      <PageSection surface="card" className="max-w-2xl self-center">
         <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <Construction className="w-16 h-16 text-gray-400" />
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-surface-muted text-primary">
+            <Construction className="h-8 w-8" />
           </div>
-          <CardTitle>Coming Soon</CardTitle>
+          <CardTitle>Under construction</CardTitle>
           <CardDescription>
-            This feature is currently under development and will be available soon.
+            This feature is currently in development and will be available soon.
           </CardDescription>
         </CardHeader>
-        <CardContent className="text-center space-y-4">
-          <p className="text-gray-600 dark:text-gray-400">
-            We're working hard to bring you this functionality. Check back soon for updates!
+        <CardContent className="space-y-4 text-center">
+          <p className="text-sm text-text-muted">
+            We&apos;re working hard to deliver this experience. Check back later for updates or follow our release notes.
           </p>
-          <Link 
-            href={parentPath}
-            className="inline-flex items-center space-x-2 text-primary hover:text-primary/80 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back to {parentPath === "/data" ? "Data Factory" : 
-                         parentPath === "/segmentation" ? "Segmentation" :
-                         parentPath === "/analysis" ? "Analysis" :
-                         parentPath === "/modeling" ? "ML Modeling" :
-                         parentPath === "/assistant" ? "AI Assistant" : "Main Page"}</span>
-          </Link>
+          <div className="inline-flex items-center gap-2 rounded-full bg-surface-muted px-3 py-1 text-xs text-text-soft">
+            <Icon className="h-4 w-4 text-primary" />
+            {title}
+          </div>
         </CardContent>
-      </Card>
-    </div>
+      </PageSection>
+    </PageShell>
   );
 
   // Wrap in AnalyticsLayout if this is an analysis page

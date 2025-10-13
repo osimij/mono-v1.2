@@ -160,10 +160,10 @@ function AppRouter() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-300">Loading Mono-AI...</p>
+      <div className="flex min-h-screen items-center justify-center bg-surface text-text-primary">
+        <div className="flex flex-col items-center gap-4 rounded-2xl bg-surface-elevated/80 px-10 py-8 text-center shadow-md ring-1 ring-border/60 backdrop-blur">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <p className="text-sm text-text-muted">Loading Mono-AI&hellip;</p>
         </div>
       </div>
     );

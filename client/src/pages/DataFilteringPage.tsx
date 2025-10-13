@@ -11,30 +11,24 @@ import { Slider } from "@/components/ui/slider";
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DataTable } from "@/components/DataTable";
 import { api } from "@/lib/api";
 import { Dataset } from "@/types";
-import { 
-  Filter, 
-  Database, 
-  Download, 
-  Save, 
-  RefreshCw, 
-  CheckCircle, 
-  BarChart3, 
-  Plus, 
-  X, 
+import {
+  Filter,
+  Database,
+  Download,
+  Save,
+  Plus,
+  X,
   Trash2,
-  Eye,
-  EyeOff,
   Calendar as CalendarIcon,
-  ChevronDown,
   Settings,
-  Play
+  Play,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { PageHeader, PageSection, PageShell } from "@/components/layout/Page";
 
 interface FilterCondition {
   id: string;
@@ -385,23 +379,35 @@ export function DataFilteringPage() {
     });
   };
 
+  const getFilterDisplayValue = (filter: FilterCondition) => {
+    if (filter.operator === "date_between" && filter.dateFrom && filter.dateTo) {
+      return `${format(filter.dateFrom, "MMM dd, yyyy")} – ${format(filter.dateTo, "MMM dd, yyyy")}`;
+    }
+
+    if (filter.operator === "in_list" && filter.values) {
+      return filter.values.join(", ");
+    }
+
+    return filter.value;
+  };
+
+  const hasFilters = draftFilters.length > 0 || appliedFilters.length > 0;
+  const previewRowCount = Math.min(filteredData.length, 50);
+
   return (
-    <div className="h-screen flex flex-col">
-      {/* Header */}
-      <div className="flex-shrink-0 p-4 border-b bg-white dark:bg-gray-900">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Data Filtering</h1>
-            <p className="text-gray-600 dark:text-gray-400">Filter your datasets with intelligent controls</p>
-          </div>
-          <div className="flex items-center space-x-2">
+    <PageShell padding="lg" width="wide" className="space-y-6">
+      <PageHeader
+        title="Data filtering"
+        description="Filter your datasets with intelligent controls."
+        actions={
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={handleExport}
               disabled={!filteredData.length}
             >
-              <Download className="w-4 h-4 mr-2" />
+              <Download className="mr-2 h-4 w-4" />
               Export
             </Button>
             <Button
@@ -410,437 +416,457 @@ export function DataFilteringPage() {
               onClick={handleSave}
               disabled={!filteredData.length}
             >
-              <Save className="w-4 h-4 mr-2" />
+              <Save className="mr-2 h-4 w-4" />
               Save
             </Button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Section: Filtering */}
-        <div className="flex-shrink-0 h-80 border-b bg-gray-50 dark:bg-gray-800">
-          <div className="h-full flex">
-            {/* Left: Dataset Selection */}
-            <div className="w-80 p-4 border-r bg-white dark:bg-gray-900">
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-sm font-medium mb-2 block">Dataset</Label>
-                  <Select 
-                    value={selectedDataset?.id.toString() || ""} 
-                    onValueChange={handleDatasetSelect}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a dataset" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {datasets.map(dataset => (
-                        <SelectItem key={dataset.id} value={dataset.id.toString()}>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{dataset.originalName}</span>
-                            <span className="text-xs text-gray-500">
-                              {dataset.rowCount} rows • {dataset.columns.length} columns
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {selectedDataset && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600 dark:text-gray-400">Dataset Info</span>
-                      <Badge variant="outline" className="text-xs">
-                        {selectedDataset.data?.length || 0} rows
-                      </Badge>
-                    </div>
-                    <div className="text-xs text-gray-500 space-y-1">
-                      <div>Name: {selectedDataset.originalName}</div>
-                      <div>Columns: {selectedDataset.columns.length}</div>
-                      <div>File Size: {(selectedDataset.fileSize / 1024).toFixed(1)} KB</div>
-                    </div>
-                  </div>
-                )}
-              </div>
+      <PageSection
+        title="Build filters"
+        description="Choose a dataset, layer conditions, and preview results in real-time."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={addFilter}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add filter
+            </Button>
+            {hasFilters && (
+              <Button variant="outline" size="sm" onClick={clearAllFilters}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Clear all
+              </Button>
+            )}
+          </div>
+        }
+        contentClassName="gap-6"
+      >
+        <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[300px,_minmax(0,1fr)]">
+          <div className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-surface p-4 shadow-xs">
+            <div className="space-y-3">
+              <Label className="text-xs font-semibold uppercase tracking-[0.18em] text-text-subtle">
+                Dataset
+              </Label>
+              <Select
+                value={selectedDataset?.id.toString() || ""}
+                onValueChange={handleDatasetSelect}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a dataset" />
+                </SelectTrigger>
+                <SelectContent>
+                  {datasets.map((dataset) => (
+                    <SelectItem key={dataset.id} value={dataset.id.toString()}>
+                      <div className="flex flex-col">
+                        <span className="font-medium text-text-primary">
+                          {dataset.originalName}
+                        </span>
+                        <span className="text-xs text-text-subtle">
+                          {dataset.rowCount.toLocaleString()} rows • {dataset.columns.length} columns
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            {/* Right: Filter Builder */}
-            <div className="flex-1 p-4 overflow-y-auto">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Filter Builder</h3>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={addFilter}
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Filter
-                    </Button>
-                    {(draftFilters.length > 0 || appliedFilters.length > 0) && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={clearAllFilters}
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Clear All
-                      </Button>
-                    )}
+            {selectedDataset && (
+              <div className="rounded-xl border border-border/60 bg-surface-muted p-4">
+                <div className="flex items-center justify-between text-sm text-text-muted">
+                  <span>Dataset info</span>
+                  <Badge variant="outline" className="border-border/70 text-xs text-text-subtle">
+                    {selectedDataset.data?.length.toLocaleString() || 0} rows
+                  </Badge>
+                </div>
+                <div className="mt-3 space-y-1 text-xs text-text-subtle">
+                  <div>
+                    <span className="text-text-muted">Name:</span> {selectedDataset.originalName}
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Columns:</span> {selectedDataset.columns.length}
+                  </div>
+                  <div>
+                    <span className="text-text-muted">File size:</span>{" "}
+                    {(selectedDataset.fileSize / 1024).toFixed(1)} KB
                   </div>
                 </div>
+              </div>
+            )}
+          </div>
 
-                {draftFilters.length === 0 && appliedFilters.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Filter className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-500 dark:text-gray-400 text-sm">
-                      No filters configured. Click "Add Filter" to start filtering your data.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {/* Draft Filters */}
-                    {draftFilters.map((filter, index) => {
-                      const columnInfo2 = columnInfo.find(col => col.name === filter.column);
-                      return (
-                        <Card key={filter.id} className="border-l-4 border-l-yellow-500">
-                          <CardContent className="p-4">
-                            <div className="flex items-center justify-between mb-3">
-                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Draft Filter {index + 1}
-                              </span>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeDraftFilter(filter.id)}
-                                className="text-red-500 hover:text-red-700"
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
-                            </div>
+          <div className="flex flex-col gap-4">
+            {draftFilters.length === 0 && appliedFilters.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border/60 bg-surface-muted/60 px-8 py-12 text-center">
+                <Filter className="h-12 w-12 text-text-subtle" />
+                <p className="text-sm text-text-muted">
+                  No filters configured yet. Add a filter to start refining your data.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {draftFilters.map((filter, index) => {
+                  const columnDetail = columnInfo.find((col) => col.name === filter.column);
+                  const numericMin = columnDetail?.minValue ?? 0;
+                  const numericMax = columnDetail?.maxValue ?? numericMin + 1;
+                  const sliderValues = [
+                    Number(filter.value ?? numericMin),
+                    Number(filter.value2 ?? numericMax),
+                  ];
 
-                            <div className="space-y-3">
-                              {/* Column Selection */}
-                              <div>
-                                <Label className="text-xs font-medium">Column</Label>
-                                <Select 
-                                  value={filter.column} 
-                                  onValueChange={(value) => updateDraftFilter(filter.id, { column: value, operator: 'equals', value: '' })}
-                                >
-                                  <SelectTrigger className="h-8">
-                                    <SelectValue placeholder="Select column" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {selectedDataset?.columns.map(col => (
-                                      <SelectItem key={col} value={col}>{col}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
+                  return (
+                    <Card key={filter.id} className="border-l-4 border-warning/80">
+                      <CardContent className="space-y-4 p-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-text-primary">
+                            Draft filter {index + 1}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeDraftFilter(filter.id)}
+                            className="text-danger hover:text-danger/80"
+                            aria-label="Remove filter"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
 
-                              {/* Operator and Value Selection */}
-                              {filter.column && columnInfo2 && (
-                                <>
-                                  <div>
-                                    <Label className="text-xs font-medium">Operator</Label>
-                                    <Select 
-                                      value={filter.operator} 
-                                      onValueChange={(value: any) => updateDraftFilter(filter.id, { operator: value })}
-                                    >
-                                      <SelectTrigger className="h-8">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {getOperatorsForType(columnInfo2.type).map(op => (
-                                          <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-
-                                  {/* Value Input based on type */}
-                                  <div>
-                                    <Label className="text-xs font-medium">Value</Label>
-                                    {columnInfo2.type === 'numeric' && (
-                                      <div className="space-y-2">
-                                        {filter.operator === 'between' ? (
-                                          <div className="grid grid-cols-2 gap-2">
-                                            <Input
-                                              type="number"
-                                              placeholder="Min"
-                                              value={filter.value || ''}
-                                              onChange={(e) => updateDraftFilter(filter.id, { value: e.target.value })}
-                                              className="h-8"
-                                            />
-                                            <Input
-                                              type="number"
-                                              placeholder="Max"
-                                              value={filter.value2 || ''}
-                                              onChange={(e) => updateDraftFilter(filter.id, { value2: e.target.value })}
-                                              className="h-8"
-                                            />
-                                          </div>
-                                        ) : (
-                                          <Input
-                                            type="number"
-                                            placeholder="Enter value"
-                                            value={filter.value || ''}
-                                            onChange={(e) => updateDraftFilter(filter.id, { value: e.target.value })}
-                                            className="h-8"
-                                          />
-                                        )}
-                                        {columnInfo2.minValue !== undefined && columnInfo2.maxValue !== undefined && (
-                                          <Slider
-                                            value={[
-                                              parseFloat(filter.value || columnInfo2.minValue.toString()),
-                                              parseFloat(filter.value2 || columnInfo2.maxValue.toString())
-                                            ]}
-                                            min={columnInfo2.minValue}
-                                            max={columnInfo2.maxValue}
-                                            step={(columnInfo2.maxValue - columnInfo2.minValue) / 100}
-                                            onValueChange={(values) => {
-                                              if (filter.operator === 'between') {
-                                                updateDraftFilter(filter.id, { 
-                                                  value: values[0].toString(),
-                                                  value2: values[1].toString()
-                                                });
-                                              } else {
-                                                updateDraftFilter(filter.id, { value: values[0].toString() });
-                                              }
-                                            }}
-                                            className="w-full"
-                                          />
-                                        )}
-                                      </div>
-                                    )}
-
-                                    {columnInfo2.type === 'categorical' && (
-                                      <div className="space-y-2">
-                                        {filter.operator === 'in_list' ? (
-                                          <div className="max-h-32 overflow-y-auto space-y-1">
-                                            {columnInfo2.categories?.map(category => (
-                                              <div key={category} className="flex items-center space-x-2">
-                                                <Checkbox
-                                                  id={`${filter.id}-${category}`}
-                                                  checked={filter.values?.includes(category)}
-                                                  onCheckedChange={(checked) => {
-                                                    const currentValues = filter.values || [];
-                                                    if (checked) {
-                                                      updateDraftFilter(filter.id, { 
-                                                        values: [...currentValues, category]
-                                                      });
-                                                    } else {
-                                                      updateDraftFilter(filter.id, { 
-                                                        values: currentValues.filter(v => v !== category)
-                                                      });
-                                                    }
-                                                  }}
-                                                />
-                                                <Label htmlFor={`${filter.id}-${category}`} className="text-xs">{category}</Label>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        ) : (
-                                          <Select 
-                                            value={filter.value} 
-                                            onValueChange={(value) => updateDraftFilter(filter.id, { value })}
-                                          >
-                                            <SelectTrigger className="h-8">
-                                              <SelectValue placeholder="Select category" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              {columnInfo2.categories?.map(category => (
-                                                <SelectItem key={category} value={category}>{category}</SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
-                                        )}
-                                      </div>
-                                    )}
-
-                                    {columnInfo2.type === 'date' && (
-                                      <div className="space-y-2">
-                                        {filter.operator === 'date_between' ? (
-                                          <div className="grid grid-cols-2 gap-2">
-                                            <Popover>
-                                              <PopoverTrigger asChild>
-                                                <Button variant="outline" className="h-8 justify-start text-left font-normal">
-                                                  <CalendarIcon className="mr-2 h-3 w-3" />
-                                                  {filter.dateFrom ? format(filter.dateFrom, 'MMM dd') : 'Start'}
-                                                </Button>
-                                              </PopoverTrigger>
-                                              <PopoverContent className="w-auto p-0">
-                                                <Calendar
-                                                  mode="single"
-                                                  selected={filter.dateFrom}
-                                                  onSelect={(date) => updateDraftFilter(filter.id, { dateFrom: date })}
-                                                  initialFocus
-                                                />
-                                              </PopoverContent>
-                                            </Popover>
-                                            <Popover>
-                                              <PopoverTrigger asChild>
-                                                <Button variant="outline" className="h-8 justify-start text-left font-normal">
-                                                  <CalendarIcon className="mr-2 h-3 w-3" />
-                                                  {filter.dateTo ? format(filter.dateTo, 'MMM dd') : 'End'}
-                                                </Button>
-                                              </PopoverTrigger>
-                                              <PopoverContent className="w-auto p-0">
-                                                <Calendar
-                                                  mode="single"
-                                                  selected={filter.dateTo}
-                                                  onSelect={(date) => updateDraftFilter(filter.id, { dateTo: date })}
-                                                  initialFocus
-                                                />
-                                              </PopoverContent>
-                                            </Popover>
-                                          </div>
-                                        ) : (
-                                          <Popover>
-                                            <PopoverTrigger asChild>
-                                              <Button variant="outline" className="h-8 justify-start text-left font-normal w-full">
-                                                <CalendarIcon className="mr-2 h-3 w-3" />
-                                                {filter.value ? filter.value : 'Select date'}
-                                              </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0">
-                                              <Calendar
-                                                mode="single"
-                                                selected={filter.value ? new Date(filter.value) : undefined}
-                                                onSelect={(date) => updateDraftFilter(filter.id, { 
-                                                  value: date ? format(date, 'yyyy-MM-dd') : '' 
-                                                })}
-                                                initialFocus
-                                              />
-                                            </PopoverContent>
-                                          </Popover>
-                                        )}
-                                      </div>
-                                    )}
-
-                                    {columnInfo2.type === 'text' && (
-                                      <Input
-                                        placeholder="Enter text"
-                                        value={filter.value || ''}
-                                        onChange={(e) => updateDraftFilter(filter.id, { value: e.target.value })}
-                                        className="h-8"
-                                      />
-                                    )}
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-
-                    {/* Applied Filters */}
-                    {appliedFilters.map((filter, index) => (
-                      <Card key={filter.id} className="border-l-4 border-l-green-500">
-                        <CardContent className="p-3">
-                          <div className="flex items-center justify-between">
-                            <div className="text-sm">
-                              <span className="font-medium">{filter.column}</span>
-                              <span className="mx-1">{filter.operator}</span>
-                              <span className="text-gray-600 dark:text-gray-400">
-                                {filter.operator === 'date_between' && filter.dateFrom && filter.dateTo
-                                  ? `${format(filter.dateFrom, 'MMM dd, yyyy')} - ${format(filter.dateTo, 'MMM dd, yyyy')}`
-                                  : filter.operator === 'in_list' && filter.values
-                                  ? filter.values.join(', ')
-                                  : filter.value}
-                              </span>
-                            </div>
-                            <Badge variant="outline" className="text-xs">Applied</Badge>
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label className="text-xs font-medium text-text-muted">Column</Label>
+                            <Select
+                              value={filter.column}
+                              onValueChange={(value) =>
+                                updateDraftFilter(filter.id, {
+                                  column: value,
+                                  operator: "equals",
+                                  value: "",
+                                  value2: "",
+                                  values: [],
+                                })
+                              }
+                            >
+                              <SelectTrigger className="h-8">
+                                <SelectValue placeholder="Select column" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {selectedDataset?.columns.map((col) => (
+                                  <SelectItem key={col} value={col}>
+                                    {col}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
+
+                          {filter.column && columnDetail && (
+                            <div className="space-y-2">
+                              <Label className="text-xs font-medium text-text-muted">Operator</Label>
+                              <Select
+                                value={filter.operator}
+                                onValueChange={(value: FilterCondition["operator"]) =>
+                                  updateDraftFilter(filter.id, { operator: value })
+                                }
+                              >
+                                <SelectTrigger className="h-8">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {getOperatorsForType(columnDetail.type).map((op) => (
+                                    <SelectItem key={op.value} value={op.value}>
+                                      {op.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+                        </div>
+
+                        {filter.column && columnDetail ? (
+                          <div className="space-y-2">
+                            <Label className="text-xs font-medium text-text-muted">Value</Label>
+                            {columnDetail.type === "numeric" && (
+                              <div className="space-y-3">
+                                {filter.operator === "between" ? (
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <Input
+                                      type="number"
+                                      placeholder="Min"
+                                      value={filter.value || ""}
+                                      onChange={(e) => updateDraftFilter(filter.id, { value: e.target.value })}
+                                      className="h-8"
+                                    />
+                                    <Input
+                                      type="number"
+                                      placeholder="Max"
+                                      value={filter.value2 || ""}
+                                      onChange={(e) => updateDraftFilter(filter.id, { value2: e.target.value })}
+                                      className="h-8"
+                                    />
+                                  </div>
+                                ) : (
+                                  <Input
+                                    type="number"
+                                    placeholder="Enter value"
+                                    value={filter.value || ""}
+                                    onChange={(e) => updateDraftFilter(filter.id, { value: e.target.value })}
+                                    className="h-8"
+                                  />
+                                )}
+                                {columnDetail.minValue !== undefined && columnDetail.maxValue !== undefined && (
+                                  <Slider
+                                    value={sliderValues}
+                                    min={numericMin}
+                                    max={numericMax}
+                                    step={numericMax !== numericMin ? (numericMax - numericMin) / 100 : 1}
+                                    onValueChange={(values) => {
+                                      if (filter.operator === "between") {
+                                        updateDraftFilter(filter.id, {
+                                          value: values[0].toString(),
+                                          value2: values[1].toString(),
+                                        });
+                                      } else {
+                                        updateDraftFilter(filter.id, { value: values[0].toString() });
+                                      }
+                                    }}
+                                  />
+                                )}
+                              </div>
+                            )}
+
+                            {columnDetail.type === "categorical" && (
+                              <div className="space-y-2">
+                                {filter.operator === "in_list" ? (
+                                  <div className="max-h-36 space-y-1 overflow-y-auto rounded-lg border border-border/60 p-3">
+                                    {columnDetail.categories?.map((category) => (
+                                      <div key={category} className="flex items-center gap-2">
+                                        <Checkbox
+                                          id={`${filter.id}-${category}`}
+                                          checked={filter.values?.includes(category)}
+                                          onCheckedChange={(checked) => {
+                                            const currentValues = filter.values || [];
+                                            if (checked) {
+                                              updateDraftFilter(filter.id, { values: [...currentValues, category] });
+                                            } else {
+                                              updateDraftFilter(filter.id, {
+                                                values: currentValues.filter((v) => v !== category),
+                                              });
+                                            }
+                                          }}
+                                        />
+                                        <Label htmlFor={`${filter.id}-${category}`} className="text-xs text-text-muted">
+                                          {category}
+                                        </Label>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <Select
+                                    value={filter.value}
+                                    onValueChange={(value) => updateDraftFilter(filter.id, { value })}
+                                  >
+                                    <SelectTrigger className="h-8">
+                                      <SelectValue placeholder="Select category" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {columnDetail.categories?.map((category) => (
+                                        <SelectItem key={category} value={category}>
+                                          {category}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              </div>
+                            )}
+
+                            {columnDetail.type === "date" && (
+                              <div className="space-y-2">
+                                {filter.operator === "date_between" ? (
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          className="h-8 justify-start text-left text-sm font-normal text-text-muted"
+                                        >
+                                          <CalendarIcon className="mr-2 h-3 w-3" />
+                                          {filter.dateFrom ? format(filter.dateFrom, "MMM dd, yyyy") : "Start date"}
+                                        </Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-auto p-0">
+                                        <Calendar
+                                          mode="single"
+                                          selected={filter.dateFrom}
+                                          onSelect={(date) => updateDraftFilter(filter.id, { dateFrom: date || undefined })}
+                                          initialFocus
+                                        />
+                                      </PopoverContent>
+                                    </Popover>
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          className="h-8 justify-start text-left text-sm font-normal text-text-muted"
+                                        >
+                                          <CalendarIcon className="mr-2 h-3 w-3" />
+                                          {filter.dateTo ? format(filter.dateTo, "MMM dd, yyyy") : "End date"}
+                                        </Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-auto p-0">
+                                        <Calendar
+                                          mode="single"
+                                          selected={filter.dateTo}
+                                          onSelect={(date) => updateDraftFilter(filter.id, { dateTo: date || undefined })}
+                                          initialFocus
+                                        />
+                                      </PopoverContent>
+                                    </Popover>
+                                  </div>
+                                ) : (
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        className="h-8 justify-start text-left text-sm font-normal text-text-muted"
+                                      >
+                                        <CalendarIcon className="mr-2 h-3 w-3" />
+                                        {filter.value ? filter.value : "Select date"}
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                      <Calendar
+                                        mode="single"
+                                        selected={filter.value ? new Date(filter.value) : undefined}
+                                        onSelect={(date) =>
+                                          updateDraftFilter(filter.id, {
+                                            value: date ? format(date, "yyyy-MM-dd") : "",
+                                          })
+                                        }
+                                        initialFocus
+                                      />
+                                    </PopoverContent>
+                                  </Popover>
+                                )}
+                              </div>
+                            )}
+
+                            {columnDetail.type === "text" && (
+                              <Input
+                                placeholder="Enter text"
+                                value={filter.value || ""}
+                                onChange={(e) => updateDraftFilter(filter.id, { value: e.target.value })}
+                                className="h-8"
+                              />
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-text-subtle">Choose a column to configure value conditions.</p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+
+                {appliedFilters.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-text-subtle">
+                      Applied filters
+                    </h4>
+                    {appliedFilters.map((filter) => (
+                      <Card key={filter.id} className="border-l-4 border-success/80">
+                        <CardContent className="flex items-center justify-between gap-4 p-3">
+                          <div className="text-sm text-text-muted">
+                            <span className="font-medium text-text-primary">{filter.column}</span>
+                            <span className="mx-1 text-text-subtle">{filter.operator}</span>
+                            <span>{getFilterDisplayValue(filter)}</span>
+                          </div>
+                          <Badge variant="outline" className="border-success/40 text-xs text-success">
+                            Applied
+                          </Badge>
                         </CardContent>
                       </Card>
                     ))}
                   </div>
                 )}
-
-                {/* Apply Filters Button */}
-                {draftFilters.length > 0 && (
-                  <div className="flex justify-center pt-4">
-                    <Button
-                      onClick={applyDraftFilters}
-                      className="px-8"
-                    >
-                      <Play className="w-4 h-4 mr-2" />
-                      Apply Filters
-                    </Button>
-                  </div>
-                )}
               </div>
-            </div>
+            )}
+
+            {draftFilters.length > 0 && (
+              <div className="flex justify-center pt-4">
+                <Button onClick={applyDraftFilters} className="px-8 shadow-xs">
+                  <Play className="mr-2 h-4 w-4" />
+                  Apply filters
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Bottom Section: Data Preview */}
-        <div className="flex-1 flex flex-col bg-white dark:bg-gray-900 min-h-0">
-          {selectedDataset ? (
-            <>
-              {/* Data Preview Header */}
-              <div className="flex-shrink-0 p-4 border-b">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Data Preview</h3>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="outline">
-                        {Math.min(filteredData.length, 50)} of {filteredData.length} rows
-                      </Badge>
-                      <Badge variant="outline">
-                        {selectedDataset.columns.length} columns
-                      </Badge>
-                      {appliedFilters.length > 0 && (
-                        <Badge variant="outline" className="bg-green-100 text-green-800">
-                          {appliedFilters.length} filter{appliedFilters.length !== 1 ? 's' : ''} applied
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleSaveTemplate}
-                      disabled={!appliedFilters.length}
-                    >
-                      <Settings className="w-4 h-4 mr-2" />
-                      Save Template
-                    </Button>
-                  </div>
-                </div>
-              </div>
+      </PageSection>
 
-              {/* Data Table */}
-              <div className="flex-1 overflow-auto min-h-0">
-                <DataTable 
-                  data={filteredData.slice(0, 50)} 
-                  columns={selectedDataset.columns}
-                  pageSize={50}
-                />
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <Database className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  Select a Dataset
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400">
-                  Choose a dataset from the top panel to start filtering
-                </p>
-              </div>
+      <PageSection
+        title="Filtered data preview"
+        description={
+          selectedDataset
+            ? `Showing top ${previewRowCount.toLocaleString()} rows of ${filteredData.length.toLocaleString()} filtered results.`
+            : "Select a dataset to see filtered rows."
+        }
+        actions={
+          selectedDataset ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSaveTemplate}
+              disabled={!appliedFilters.length}
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              Save template
+            </Button>
+          ) : undefined
+        }
+        contentClassName="gap-4"
+      >
+        {selectedDataset ? (
+          <>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-text-muted">
+              <Badge variant="outline" className="border-border/70">
+                {previewRowCount.toLocaleString()} of {filteredData.length.toLocaleString()} rows
+              </Badge>
+              <Badge variant="outline" className="border-border/70">
+                {selectedDataset.columns.length} columns
+              </Badge>
+              {appliedFilters.length > 0 && (
+                <Badge className="border-success/40 bg-success/10 text-success">
+                  {appliedFilters.length} filter{appliedFilters.length !== 1 ? "s" : ""} applied
+                </Badge>
+              )}
             </div>
-          )}
-        </div>
-      </div>
-    </div>
+            <div className="overflow-hidden rounded-2xl border border-border/60">
+              <DataTable
+                data={filteredData.slice(0, 50)}
+                columns={selectedDataset.columns}
+                pageSize={50}
+              />
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center gap-4 py-12 text-center">
+            <Database className="h-16 w-16 text-text-subtle" />
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-text-primary">Select a dataset</h3>
+              <p className="text-sm text-text-muted">
+                Choose a dataset above to begin filtering and preview the results in real time.
+              </p>
+            </div>
+          </div>
+        )}
+      </PageSection>
+
+    </PageShell>
+
   );
 }

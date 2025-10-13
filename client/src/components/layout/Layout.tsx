@@ -230,7 +230,7 @@ export function Layout({ children }: LayoutProps) {
   }, [sidebarWidth]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-surface-muted text-text-primary">
       <Sidebar 
         isOpen={sidebarOpen} 
         onClose={() => setSidebarOpen(false)} 
@@ -245,8 +245,10 @@ export function Layout({ children }: LayoutProps) {
         onModeToggle={toggleMode}
       />
       
-      <main className="pt-16 min-h-screen transition-[margin-left] duration-200 lg-ml-sidebar">
-        {children}
+      <main className="min-h-screen pt-16 transition-[margin-left] duration-200 lg-ml-sidebar">
+        <div className="min-h-[calc(100vh-4rem)] bg-surface">
+          {children}
+        </div>
       </main>
 
       <OnboardingTour 

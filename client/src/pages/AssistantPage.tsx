@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useLocation, useSearch } from "wouter";
-import { Card } from "@/components/ui/card";
+import { useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -10,6 +9,7 @@ import { api } from "@/lib/api";
 import { ChatMessage, ChatSession, Dataset } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { ChevronLeft, ChevronRight, Plus, Bot } from "lucide-react";
+import { PageShell } from "@/components/layout/Page";
 
 export function AssistantPage() {
   const [selectedDataset, setSelectedDataset] = useState<string>("");
@@ -213,14 +213,20 @@ export function AssistantPage() {
   const suggestions = getDatasetSuggestions(selectedDatasetData);
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex">
-      {/* Single Chat Sidebar */}
-      <div className={`${sidebarCollapsed ? 'w-16' : 'w-80'} border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex flex-col transition-all duration-300`}>
+    <PageShell
+      padding="none"
+      width="full"
+      className="min-h-[calc(100vh-4rem)] bg-surface"
+      contentClassName="min-h-[calc(100vh-4rem)] gap-0"
+    >
+      <div className="flex h-full">
+        {/* Single Chat Sidebar */}
+        <div className={`${sidebarCollapsed ? 'w-16' : 'w-80'} border-r border-border bg-surface-muted flex flex-col transition-all duration-300`}>
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+        <div className="p-4 border-b border-border flex items-center gap-2">
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-2 hover:bg-surface-muted rounded-lg transition-colors"
           >
             {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </button>
@@ -258,8 +264,8 @@ export function AssistantPage() {
         {!sidebarCollapsed && (
           <div className="flex-1 overflow-y-auto">
             {/* Section Header */}
-            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+            <div className="px-4 py-3 border-b border-border">
+              <h3 className="text-sm font-semibold text-text-soft uppercase tracking-wide">
                 Previous Chats
               </h3>
             </div>
@@ -267,12 +273,12 @@ export function AssistantPage() {
             {/* Sessions List */}
             <div className="p-2">
               {sessions.length === 0 ? (
-                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                  <div className="w-12 h-12 mx-auto mb-3 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                    <Bot className="w-6 h-6 text-gray-400" />
+                <div className="text-center py-8 text-text-muted">
+                  <div className="w-12 h-12 mx-auto mb-3 bg-surface-muted rounded-full flex items-center justify-center">
+                    <Bot className="w-6 h-6 text-text-subtle" />
                   </div>
                   <p className="text-sm font-medium">No conversations yet</p>
-                  <p className="text-xs mt-1 text-gray-400">Your chat history will appear here</p>
+                  <p className="text-xs mt-1 text-text-subtle">Your chat history will appear here</p>
                 </div>
               ) : (
                 <div className="space-y-1">
@@ -294,13 +300,13 @@ export function AssistantPage() {
                       className={`w-full p-3 rounded-lg text-left transition-colors ${
                         currentSession?.id === session.id
                           ? 'bg-primary/10 border border-primary/20'
-                          : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                          : 'hover:bg-surface-subtle'
                       }`}
                     >
-                      <div className="font-medium text-sm text-gray-900 dark:text-white truncate">
+                      <div className="font-medium text-sm text-text-primary truncate">
                         {session.title}
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      <div className="text-xs text-text-muted mt-1">
                         {session.messages && session.messages.length > 0 
                           ? `${typeof session.messages === 'string' 
                               ? JSON.parse(session.messages).length || 0 
@@ -308,7 +314,7 @@ export function AssistantPage() {
                           : 'No messages'}
                       </div>
                       {session.createdAt && (
-                        <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                        <div className="text-xs text-text-subtle mt-1">
                           {new Date(session.createdAt).toLocaleDateString()}
                         </div>
                       )}
@@ -363,10 +369,10 @@ export function AssistantPage() {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
         {/* Chat Header */}
-        <div className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-6 py-3">
+        <div className="border-b border-border bg-surface px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
+              <h1 className="text-lg font-semibold text-text-primary">
                 {currentSession ? currentSession.title : 'AI Assistant'}
               </h1>
               
@@ -387,7 +393,7 @@ export function AssistantPage() {
                     </SelectContent>
                   </Select>
                   {selectedDatasetData && (
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                    <span className="text-xs text-text-muted">
                       {selectedDatasetData.rowCount.toLocaleString()} rows • {selectedDatasetData.columns.length} cols
                     </span>
                   )}
@@ -398,8 +404,8 @@ export function AssistantPage() {
           
           {/* Quick Start Buttons - Always Show When Available */}
           {suggestions.length > 0 && (
-            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
-              <span className="text-xs text-gray-500 dark:text-gray-400">Quick start:</span>
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
+              <span className="text-xs text-text-muted">Quick start:</span>
               {suggestions.slice(0, 4).map((suggestion, index) => (
                 <TooltipProvider key={index} delayDuration={100}>
                   <Tooltip>
@@ -433,5 +439,6 @@ export function AssistantPage() {
         </div>
       </div>
     </div>
+    </PageShell>
   );
 }

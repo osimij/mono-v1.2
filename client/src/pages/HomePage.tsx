@@ -1,36 +1,164 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Brain, Upload, BarChart3, Bot, Rocket } from "lucide-react";
+import { Brain } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { OnboardingTour } from "@/components/OnboardingTour";
 
-const steps = [
-  {
-    icon: Upload,
-    title: "Upload Data",
-    description: "Drop your Excel or CSV files and let AI handle the rest",
-    color: "text-primary-600 dark:text-primary-400"
-  },
-  {
-    icon: BarChart3,
-    title: "Instant Insights",
-    description: "Get automated analysis and beautiful visualizations",
-    color: "text-emerald-600 dark:text-emerald-400"
-  },
-  {
-    icon: Bot,
-    title: "AI Models",
-    description: "Create predictive models with one-click training",
-    color: "text-violet-600 dark:text-violet-400"
-  },
-  {
-    icon: Rocket,
-    title: "Deploy & Share",
-    description: "Export models and share insights with your team",
-    color: "text-orange-600 dark:text-orange-400"
-  }
-];
+function SpiralLinesBackground() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const context = canvas.getContext("2d");
+    if (!context) return;
+
+    const lineCount = 220;
+    const lines = Array.from({ length: lineCount }, (_, index) => ({
+      index,
+      phase: Math.random() * Math.PI * 2,
+      jitter: Math.random() * 0.6 + 0.4,
+      baseLength: 28 + Math.random() * 26,
+    }));
+
+    const pointer = { x: 0, y: 0, active: false };
+    let width = 0;
+    let height = 0;
+    let animationFrame: number | null = null;
+
+    const resize = () => {
+      width = canvas.clientWidth;
+      height = canvas.clientHeight;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      if (context.resetTransform) {
+        context.resetTransform();
+      } else {
+        context.setTransform(1, 0, 0, 1, 0, 0);
+      }
+      context.scale(dpr, dpr);
+    };
+
+    resize();
+    window.addEventListener("resize", resize);
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      pointer.x = event.clientX - rect.left;
+      pointer.y = event.clientY - rect.top;
+      pointer.active = true;
+    };
+
+    const handlePointerLeave = () => {
+      pointer.active = false;
+    };
+
+    canvas.addEventListener("pointermove", handlePointerMove);
+    canvas.addEventListener("pointerdown", handlePointerMove);
+    canvas.addEventListener("pointerleave", handlePointerLeave);
+
+    const renderFrame = (time: number) => {
+      context.clearRect(0, 0, width, height);
+
+      const minDimension = Math.min(width, height);
+      const baseRadius = minDimension * 0.16;
+      const radiusStep = minDimension * 0.012;
+      const centerX = width * 0.58;
+      const centerY = height * 0.45;
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const spiralIndex = line.index;
+        const theta = spiralIndex * 0.34 + time * 0.00018;
+        const radius = baseRadius + Math.sqrt(spiralIndex) * radiusStep * 5.4;
+
+        if (radius > Math.max(width, height) * 1.12) continue;
+
+        const wave = Math.sin(time * 0.0012 + line.phase);
+        const x = centerX + radius * Math.cos(theta);
+        const yBase = centerY + radius * Math.sin(theta);
+        const y = yBase + wave * 18 * line.jitter;
+
+        const distance = pointer.active
+          ? Math.hypot(x - pointer.x, y - pointer.y)
+          : Infinity;
+        const influence = pointer.active
+          ? Math.max(0, 1 - distance / (minDimension * 0.42))
+          : 0;
+
+        const length = line.baseLength + wave * 12 + influence * (minDimension * 0.14);
+        const opacity = Math.min(
+          0.8,
+          0.22 + wave * 0.22 + influence * 0.62 + (1 - spiralIndex / lines.length) * 0.12,
+        );
+        const lineWidth = 1.2 + influence * 0.9;
+
+        context.strokeStyle = `rgba(214, 225, 255, ${opacity})`;
+        context.lineWidth = lineWidth;
+        context.beginPath();
+        context.moveTo(x, y - length / 2);
+        context.lineTo(x, y + length / 2);
+        context.stroke();
+      }
+    };
+
+    const animate = (time: number) => {
+      renderFrame(time);
+      animationFrame = requestAnimationFrame(animate);
+    };
+
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+    if (mediaQuery.matches) {
+      renderFrame(0);
+    } else {
+      animationFrame = requestAnimationFrame(animate);
+    }
+
+    const handleMotionChange = () => {
+      if (mediaQuery.matches) {
+        if (animationFrame) {
+          cancelAnimationFrame(animationFrame);
+          animationFrame = null;
+        }
+        renderFrame(0);
+      } else if (!animationFrame) {
+        animationFrame = requestAnimationFrame(animate);
+      }
+    };
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener("change", handleMotionChange);
+    } else {
+      mediaQuery.addListener(handleMotionChange);
+    }
+
+    return () => {
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+      }
+      window.removeEventListener("resize", resize);
+      canvas.removeEventListener("pointermove", handlePointerMove);
+      canvas.removeEventListener("pointerdown", handlePointerMove);
+      canvas.removeEventListener("pointerleave", handlePointerLeave);
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener("change", handleMotionChange);
+      } else {
+        mediaQuery.removeListener(handleMotionChange);
+      }
+    };
+  }, []);
+
+  return (
+    <div className="absolute inset-0">
+      <canvas ref={canvasRef} className="h-full w-full" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(100,120,255,0.28),rgba(5,5,8,0.95)62%,rgba(5,5,8,1)90%)] mix-blend-screen opacity-80" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(5,5,8,0.82)0%,rgba(5,5,8,0.08)45%,rgba(5,5,8,0.88)100%)]" />
+    </div>
+  );
+}
 
 export function HomePage() {
   const [, setLocation] = useLocation();
@@ -63,124 +191,69 @@ export function HomePage() {
         onClose={handleOnboardingClose}
         onNavigate={handleOnboardingNavigate}
       />
-      
-      <div className="p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <div className="mb-6">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary to-primary/80 rounded-2xl mb-4">
-                <Brain className="w-10 h-10 text-white" />
+
+      <div className="relative min-h-screen overflow-hidden bg-[#050505] text-white">
+        <SpiralLinesBackground />
+
+        <div className="relative z-10 flex min-h-screen flex-col">
+          <header className="flex items-center justify-between px-6 pt-8 md:px-12">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 backdrop-blur">
+                <Brain className="h-6 w-6 text-lime-300" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-semibold uppercase tracking-[0.45em] text-white/50">
+                  Mono AI
+                </span>
+                <span className="text-sm font-medium text-white/80">
+                  Intelligence studio
+                </span>
               </div>
             </div>
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Welcome to Mono-AI
-            </h1>
-            <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
-              Transform your business data into actionable insights with AI. No coding required.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/data">
-                <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-3 text-lg">
-                  <Brain className="w-5 h-5 mr-2" />
-                  Explore Demo Data
-                </Button>
-              </Link>
-              <Button 
-                size="lg" 
-                variant="outline" 
-                className="px-8 py-3 text-lg"
-                onClick={startOnboarding}
-              >
-                <Bot className="w-5 h-5 mr-2" />
-                Take Tour
-              </Button>
+            <button
+              type="button"
+              onClick={startOnboarding}
+              className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.32em] text-white/60 transition hover:border-white/35 hover:text-white"
+            >
+              Take the tour
+            </button>
+          </header>
+
+          <div className="flex flex-1 items-end">
+            <div className="px-6 pb-14 md:px-12 md:pb-20 lg:px-24 lg:pb-24">
+              <div className="max-w-xl space-y-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.4em] text-white/45">
+                  Real-time portfolio intelligence
+                </p>
+                <h1 className="text-4xl font-semibold leading-[1.08] text-white md:text-6xl">
+                  Join a new generation of investors
+                </h1>
+                <p className="text-base text-white/70 md:text-lg">
+                  Build conviction with AI-assisted analysis, live market signals, and collaborative
+                  storytelling designed for bold investment teams.
+                </p>
+                <div>
+                  <Button
+                    asChild
+                    size="lg"
+                    className="w-fit rounded-full bg-lime-400 px-10 py-6 text-base font-semibold text-black shadow-[0_28px_80px_rgba(186,255,120,0.35)] transition duration-300 hover:bg-lime-300 hover:shadow-[0_22px_60px_rgba(186,255,120,0.28)]"
+                  >
+                    <Link href="/data">Get started</Link>
+                  </Button>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 pt-4 text-[0.65rem] font-medium uppercase tracking-[0.32em] text-white/40">
+                  <span className="rounded-full border border-white/15 px-3 py-2">
+                    Live demo dataset
+                  </span>
+                  <span className="rounded-full border border-white/15 px-3 py-2">
+                    Predictive models
+                  </span>
+                  <span className="rounded-full border border-white/15 px-3 py-2">
+                    AI assistant
+                  </span>
+                </div>
+              </div>
             </div>
-            
-            <div className="mt-6 p-4 bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-blue-900/20 rounded-lg border border-emerald-200 dark:border-emerald-700">
-              <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                <strong>Ready to explore:</strong> E-commerce customer dataset with 50 records • 2 trained ML models • AI chat history
-              </p>
-            </div>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-            {steps.map((step, index) => {
-              const Icon = step.icon;
-              return (
-                <Card key={index} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6">
-                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${
-                      index === 0 ? 'bg-primary/10' :
-                      index === 1 ? 'bg-emerald-100 dark:bg-emerald-900/30' :
-                      index === 2 ? 'bg-violet-100 dark:bg-violet-900/30' :
-                      'bg-orange-100 dark:bg-orange-900/30'
-                    }`}>
-                      <Icon className={`w-6 h-6 ${step.color}`} />
-                    </div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-                      {step.title}
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">
-                      {step.description}
-                    </p>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
-            <Card className="hover:shadow-lg transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-center mb-4">
-                  <Upload className="w-8 h-8 text-primary mr-3" />
-                  <h3 className="font-semibold text-gray-900 dark:text-white">Sample Dataset</h3>
-                </div>
-                <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-                  E-commerce customer data with 50 records including demographics, purchase history, and engagement metrics.
-                </p>
-                <Link href="/data">
-                  <Button variant="outline" size="sm" className="w-full">
-                    View Data →
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-lg transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-center mb-4">
-                  <BarChart3 className="w-8 h-8 text-emerald-600 mr-3" />
-                  <h3 className="font-semibold text-gray-900 dark:text-white">Pre-built Models</h3>
-                </div>
-                <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-                  Customer churn prediction (94.2% accuracy) and spending score regression models ready to explore.
-                </p>
-                <Link href="/modeling">
-                  <Button variant="outline" size="sm" className="w-full">
-                    View Models →
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-lg transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-center mb-4">
-                  <Bot className="w-8 h-8 text-violet-600 mr-3" />
-                  <h3 className="font-semibold text-gray-900 dark:text-white">AI Assistant</h3>
-                </div>
-                <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-                  Get intelligent insights and recommendations from your data with conversational AI.
-                </p>
-                <Link href="/assistant">
-                  <Button variant="outline" size="sm" className="w-full">
-                    Chat with AI →
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>
