@@ -15,8 +15,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Menu, Moon, Sun, LogOut, Shield, User, Settings, Sparkles, Brain } from "lucide-react";
-import { useTheme } from "next-themes";
+import { Menu, Moon, Sun, LogOut, Shield, User, Settings } from "lucide-react";
+import { useTheme } from "@/hooks/use-theme";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
 
@@ -86,31 +86,6 @@ export function Header({ onMenuToggle, title, description, isProMode, onModeTogg
             <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             <span className="sr-only">Toggle theme</span>
           </Button>
-
-          {onModeToggle && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={onModeToggle}
-                    className="relative text-text-muted hover:text-text-primary"
-                  >
-                    {isProMode ? (
-                      <Sparkles className="h-5 w-5 text-warning" />
-                    ) : (
-                      <Brain className="h-5 w-5 text-primary" />
-                    )}
-                    <span className="sr-only">Toggle mode</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p>Switch to {isProMode ? "Light" : "Pro"} Mode</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
 
           {!user ? (
             // Not logged in - show login buttons

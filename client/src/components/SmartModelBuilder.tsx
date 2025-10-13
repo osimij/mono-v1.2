@@ -16,14 +16,7 @@ import {
   Info,
   Sparkles 
 } from "lucide-react";
-
-interface Dataset {
-  id: number;
-  originalName: string;
-  columns: string[];
-  rowCount: number;
-  data: any[];
-}
+import type { Dataset } from "@/types";
 
 interface ModelSuggestion {
   type: 'classification' | 'regression' | 'time_series';
@@ -243,7 +236,7 @@ export function SmartModelBuilder({ datasets, onModelCreate, onBack }: SmartMode
 
       {/* Step 3: AI Suggestion */}
       {suggestion && (
-        <Card className="border-orange-200 bg-orange-50 dark:bg-orange-950 dark:border-orange-800">
+        <Card className="border-border bg-orange-50 dark:bg-orange-950">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-orange-800 dark:text-orange-200">
               <CheckCircle className="w-5 h-5" />

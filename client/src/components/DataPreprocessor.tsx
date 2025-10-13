@@ -26,6 +26,7 @@ import {
   Brain,
   Database
 } from "lucide-react";
+import type { Dataset } from "@/types";
 
 interface PreprocessingOptions {
   removeEmptyRows: boolean;
@@ -96,16 +97,6 @@ interface DataPreprocessorProps {
   onBack?: () => void;
   datasets?: Dataset[];
   initialDataset?: Dataset;
-}
-
-interface Dataset {
-  id: number;
-  filename: string;
-  originalName: string;
-  rowCount: number;
-  columns: string[];
-  fileSize: number;
-  data: any[];
 }
 
 export function DataPreprocessor({ onComplete, onBack, datasets = [], initialDataset }: DataPreprocessorProps) {
@@ -255,10 +246,10 @@ export function DataPreprocessor({ onComplete, onBack, datasets = [], initialDat
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'high': return 'bg-red-100 text-red-800 border-red-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-blue-100 text-blue-800 border-blue-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'high': return 'bg-red-100 text-red-800 border-border';
+      case 'medium': return 'bg-yellow-100 text-yellow-800 border-border';
+      case 'low': return 'bg-blue-100 text-blue-800 border-border';
+      default: return 'bg-gray-100 text-gray-800 border-border';
     }
   };
 
@@ -302,7 +293,7 @@ export function DataPreprocessor({ onComplete, onBack, datasets = [], initialDat
                       className={`p-3 border rounded-lg cursor-pointer transition-colors ${
                         selectedDataset?.id === dataset.id 
                           ? 'border-primary bg-primary/5' 
-                          : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                          : 'border-border hover:bg-gray-50 dark:hover:bg-gray-800'
                       }`}
                       onClick={() => {
                         setSelectedDataset(dataset);
@@ -610,7 +601,7 @@ export function DataPreprocessor({ onComplete, onBack, datasets = [], initialDat
       {/* Results Section - Full Width */}
       <div className="space-y-6">
         {error && (
-          <Alert className="border-red-200 bg-red-50">
+          <Alert className="border-border bg-red-50">
             <AlertTriangle className="h-4 w-4 text-red-600" />
             <AlertDescription className="text-red-800">{error}</AlertDescription>
           </Alert>
@@ -756,7 +747,7 @@ export function DataPreprocessor({ onComplete, onBack, datasets = [], initialDat
                   ) : (
                     <div className="space-y-2">
                       {result.suggestions.map((suggestion, index) => (
-                        <div key={index} className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded">
+                        <div key={index} className="flex items-center gap-2 p-2 bg-green-50 border border-border rounded">
                           <CheckCircle className="w-4 h-4 text-green-600" />
                           <span className="text-sm text-green-800">{suggestion}</span>
                         </div>

@@ -28,18 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { PageHeader, PageSection, PageShell } from "@/components/layout/Page";
 import { api } from "@/lib/api";
-
-interface Dataset {
-  id: number;
-  userId: string;
-  filename: string;
-  originalName: string;
-  fileSize: number;
-  rowCount?: number;
-  columns?: string[];
-  uploadedAt: string;
-  data?: any[];
-}
+import type { Dataset } from "@/types";
 
 export function DataPreviewPage() {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
@@ -71,7 +60,7 @@ export function DataPreviewPage() {
       try {
         setIsLoading(true);
         setError(null);
-        const data = await api.datasets.getAll();
+        const data = (await api.datasets.getAll()) as Dataset[];
         setDatasets(data);
       } catch (err) {
         console.error("Error fetching datasets:", err);
@@ -95,7 +84,7 @@ export function DataPreviewPage() {
       setLoadingDatasetId(dataset.id);
       setError(null);
       setSelectedDataset(dataset);
-      const details = await api.datasets.getById(dataset.id);
+      const details = (await api.datasets.getById(dataset.id)) as Dataset;
       setSelectedDataset(details);
     } catch (err) {
       console.error("Error fetching dataset details:", err);
@@ -129,7 +118,8 @@ export function DataPreviewPage() {
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "Unknown";
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
@@ -146,7 +136,8 @@ export function DataPreviewPage() {
     return "other";
   };
 
-  const isWithinDays = (uploadedAt: string, days: number) => {
+  const isWithinDays = (uploadedAt: string | null, days: number) => {
+    if (!uploadedAt) return false;
     const then = new Date(uploadedAt).getTime();
     const now = Date.now();
     return (now - then) / (1000 * 60 * 60 * 24) <= days;
@@ -194,7 +185,9 @@ export function DataPreviewPage() {
         case "size":
           return (a.fileSize - b.fileSize) * dir;
         default:
-          return (new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime()) * dir;
+          const aTime = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0;
+          const bTime = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0;
+          return (aTime - bTime) * dir;
       }
     });
 

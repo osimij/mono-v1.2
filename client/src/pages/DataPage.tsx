@@ -547,7 +547,7 @@ export function DataPage() {
             </CardHeader>
             <CardContent>
               <DataTable 
-                data={selectedDataset.data}
+                data={selectedDataset.data ?? []}
                 columns={selectedDataset.columns}
                 pageSize={10}
               />

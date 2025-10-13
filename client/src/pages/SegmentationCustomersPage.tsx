@@ -13,6 +13,8 @@ import { api } from "@/lib/api";
 import { Dataset } from "@/types";
 import { PageHeader, PageSection, PageShell } from "@/components/layout/Page";
 
+type DatasetRow = Record<string, unknown>;
+
 interface DataSegment {
   name: string;
   count: number;
@@ -24,7 +26,7 @@ interface DataSegment {
 }
 
 interface SegmentData {
-  data: any[];
+  data: DatasetRow[];
   count: number;
   avgValues: { [key: string]: number };
   minValues: { [key: string]: number };
@@ -37,6 +39,29 @@ interface SegmentationConfig {
   selectedColumns: string[];
   customRules?: string[];
 }
+
+const createEmptySegment = (): SegmentData => ({
+  data: [],
+  count: 0,
+  avgValues: {} as Record<string, number>,
+  minValues: {} as Record<string, number>,
+  maxValues: {} as Record<string, number>,
+});
+
+const toNumericValue = (value: unknown): number => {
+  if (typeof value === "number") {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value);
+    return Number.isNaN(parsed) ? NaN : parsed;
+  }
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+  const coerced = Number(value);
+  return Number.isNaN(coerced) ? NaN : coerced;
+};
 
 export function SegmentationCustomersPage() {
   const [selectedDataset, setSelectedDataset] = useState<Dataset | null>(null);
@@ -52,20 +77,22 @@ export function SegmentationCustomersPage() {
   const [customRule, setCustomRule] = useState("");
 
   // Fetch datasets
-  const { data: datasets = [], isLoading: datasetsLoading } = useQuery({
+  const { data: datasets = [] as Dataset[], isLoading: datasetsLoading } = useQuery<Dataset[]>({
     queryKey: ["/api/datasets"],
-    queryFn: api.datasets.getAll,
+    queryFn: async () => (await api.datasets.getAll()) as Dataset[],
     staleTime: 0,
     refetchOnMount: true
   });
 
   // Generate segments based on data
-  const generateSegments = (data: any[], method: string, numSegments: number, columns: string[]) => {
+  const generateSegments = (data: DatasetRow[], method: string, numSegments: number, columns: string[]) => {
     if (!data || data.length === 0) return [];
 
-    const numericColumns = columns.filter(col => {
-      const sampleValues = data.slice(0, 100).map(row => row[col]);
-      return sampleValues.some(val => !isNaN(parseFloat(val)));
+    const numericColumns = columns.filter((col) => {
+      const sampleValues = data
+        .slice(0, 100)
+        .map((row) => toNumericValue(row[col]));
+      return sampleValues.some((val) => Number.isFinite(val));
     });
 
     if (numericColumns.length === 0) {
@@ -74,9 +101,9 @@ export function SegmentationCustomersPage() {
         count: data.length,
         color: "bg-primary",
         description: "No numeric columns found for segmentation",
-        avgValues: {},
-        minValues: {},
-        maxValues: {}
+        avgValues: {} as Record<string, number>,
+        minValues: {} as Record<string, number>,
+        maxValues: {} as Record<string, number>
       }];
     }
 
@@ -101,7 +128,7 @@ export function SegmentationCustomersPage() {
       "Medium-low value items", "Low value items", "Very low value items"
     ];
 
-    let segmentData: any[] = [];
+    let segmentData: SegmentData[] = [];
 
     switch (method) {
       case 'kmeans':
@@ -133,10 +160,10 @@ export function SegmentationCustomersPage() {
 
   // K-means clustering
   const performKMeansSegmentation = (data: any[], columns: string[], k: number): SegmentData[] => {
-    const numericData = data.map(row => 
-      columns.map(col => {
-        const val = parseFloat(row[col]);
-        return isNaN(val) ? 0 : val;
+    const numericData = data.map((row) =>
+      columns.map((col) => {
+        const val = toNumericValue(row[col]);
+        return Number.isNaN(val) ? 0 : val;
       })
     );
 
@@ -184,13 +211,7 @@ export function SegmentationCustomersPage() {
     }
 
     // Group data by clusters
-    const segments: SegmentData[] = Array.from({ length: k }, () => ({ 
-      data: [] as any[], 
-      count: 0, 
-      avgValues: {} as { [key: string]: number }, 
-      minValues: {} as { [key: string]: number }, 
-      maxValues: {} as { [key: string]: number } 
-    }));
+    const segments: SegmentData[] = Array.from({ length: k }, () => createEmptySegment());
     
     data.forEach((row, index) => {
       const clusterIndex = clusters[index];
@@ -202,7 +223,9 @@ export function SegmentationCustomersPage() {
     segments.forEach(segment => {
       if (segment.data.length > 0) {
         columns.forEach(col => {
-          const values = segment.data.map(row => parseFloat(row[col])).filter(val => !isNaN(val));
+          const values = segment.data
+            .map((row) => toNumericValue(row[col]))
+            .filter((val): val is number => Number.isFinite(val));
           if (values.length > 0) {
             segment.avgValues[col] = values.reduce((sum, val) => sum + val, 0) / values.length;
             segment.minValues[col] = Math.min(...values);
@@ -216,30 +239,27 @@ export function SegmentationCustomersPage() {
   };
 
   // Hierarchical clustering (simplified)
-  const performHierarchicalSegmentation = (data: any[], columns: string[], k: number): SegmentData[] => {
+  const performHierarchicalSegmentation = (data: DatasetRow[], columns: string[], k: number): SegmentData[] => {
     // For simplicity, use k-means as a proxy
     return performKMeansSegmentation(data, columns, k);
   };
 
   // Quantile-based segmentation
-  const performQuantileSegmentation = (data: any[], columns: string[], k: number): SegmentData[] => {
-    const segments: SegmentData[] = Array.from({ length: k }, () => ({ 
-      data: [] as any[], 
-      count: 0, 
-      avgValues: {} as { [key: string]: number }, 
-      minValues: {} as { [key: string]: number }, 
-      maxValues: {} as { [key: string]: number } 
-    }));
+  const performQuantileSegmentation = (data: DatasetRow[], columns: string[], k: number): SegmentData[] => {
+    const segments: SegmentData[] = Array.from({ length: k }, () => createEmptySegment());
     
     // Use the first numeric column for quantile calculation
     const primaryColumn = columns[0];
-    const values = data.map(row => parseFloat(row[primaryColumn])).filter(val => !isNaN(val)).sort((a, b) => a - b);
+    const values = data
+      .map((row) => toNumericValue(row[primaryColumn]))
+      .filter((val): val is number => Number.isFinite(val))
+      .sort((a, b) => a - b);
     
     const segmentSize = Math.ceil(values.length / k);
     
     data.forEach(row => {
-      const value = parseFloat(row[primaryColumn]);
-      if (!isNaN(value)) {
+      const value = toNumericValue(row[primaryColumn]);
+      if (!Number.isNaN(value)) {
         const segmentIndex = Math.min(Math.floor(values.indexOf(value) / segmentSize), k - 1);
         segments[segmentIndex].data.push(row);
         segments[segmentIndex].count++;
@@ -250,7 +270,9 @@ export function SegmentationCustomersPage() {
     segments.forEach(segment => {
       if (segment.data.length > 0) {
         columns.forEach(col => {
-          const values = segment.data.map(row => parseFloat(row[col])).filter(val => !isNaN(val));
+          const values = segment.data
+            .map((row) => toNumericValue(row[col]))
+            .filter((val): val is number => Number.isFinite(val));
           if (values.length > 0) {
             segment.avgValues[col] = values.reduce((sum, val) => sum + val, 0) / values.length;
             segment.minValues[col] = Math.min(...values);
@@ -264,7 +286,7 @@ export function SegmentationCustomersPage() {
   };
 
   // Custom rule-based segmentation
-  const performCustomRuleSegmentation = (data: any[], rules: string[]) => {
+  const performCustomRuleSegmentation = (data: DatasetRow[], rules: string[]) => {
     if (rules.length === 0) {
       return [{
         data,
@@ -275,8 +297,8 @@ export function SegmentationCustomersPage() {
       }];
     }
 
-    const segments = rules.map(() => ({ data: [], count: 0, avgValues: {}, minValues: {}, maxValues: {} }));
-    const defaultSegment = { data: [], count: 0, avgValues: {}, minValues: {}, maxValues: {} };
+    const segments = rules.map(() => createEmptySegment());
+    const defaultSegment = createEmptySegment();
 
     data.forEach(row => {
       let assigned = false;
@@ -285,9 +307,10 @@ export function SegmentationCustomersPage() {
         try {
           // Simple rule evaluation - replace column names with values
           let rule = rules[i];
-          Object.keys(row).forEach(col => {
-            const value = typeof row[col] === 'string' ? `'${row[col]}'` : row[col];
-            rule = rule.replace(new RegExp(`\\b${col}\\b`, 'g'), value);
+          Object.keys(row).forEach((col) => {
+            const rawValue = row[col];
+            const replacement = typeof rawValue === 'string' ? `'${rawValue}'` : String(rawValue);
+            rule = rule.replace(new RegExp(`\\b${col}\\b`, 'g'), replacement);
           });
           
           if (eval(rule)) {
@@ -316,8 +339,10 @@ export function SegmentationCustomersPage() {
     allSegments.forEach(segment => {
       if (segment.data.length > 0) {
         const columns = Object.keys(segment.data[0] || {});
-        columns.forEach(col => {
-          const values = segment.data.map(row => parseFloat(row[col])).filter(val => !isNaN(val));
+        columns.forEach((col) => {
+          const values = segment.data
+            .map((row) => toNumericValue(row[col]))
+            .filter((val): val is number => Number.isFinite(val));
           if (values.length > 0) {
             segment.avgValues[col] = values.reduce((sum, val) => sum + val, 0) / values.length;
             segment.minValues[col] = Math.min(...values);
@@ -754,7 +779,7 @@ export function SegmentationCustomersPage() {
             ) : null}
           </>
         ) : (
-          <Alert variant="outline">
+          <Alert>
             <AlertDescription>
               Please select a dataset to begin segmentation analysis.
             </AlertDescription>

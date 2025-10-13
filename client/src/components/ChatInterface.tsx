@@ -135,7 +135,7 @@ export function ChatInterface({ messages, onSendMessage, isLoading = false }: Ch
                 />
                 
                 {message.metadata?.chart && (
-                  <div className="mt-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
+                  <div className="mt-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-border">
                     <h4 className="font-semibold text-base mb-3 text-gray-900 dark:text-white">{message.metadata.chart.title}</h4>
                     <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
                       {message.metadata.chart.analysis}
@@ -177,7 +177,7 @@ export function ChatInterface({ messages, onSendMessage, isLoading = false }: Ch
 
       {/* Quick Actions */}
       {messages.length === 0 && (
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="p-4 border-t border-border">
           <div className="flex flex-wrap gap-2 mb-4">
             {quickActions.map((action) => (
               <Button
@@ -195,7 +195,7 @@ export function ChatInterface({ messages, onSendMessage, isLoading = false }: Ch
       )}
 
       {/* Input */}
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+      <div className="p-4 border-t border-border">
         <div className="flex space-x-3">
           <Input
             ref={inputRef}

@@ -93,12 +93,17 @@ export class MemStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = (this.currentUserId++).toString();
-    const user: User = { 
-      ...insertUser, 
-      id, 
+    const now = new Date();
+    const user: User = {
+      id,
+      email: insertUser.email ?? null,
+      password: insertUser.password ?? null,
+      firstName: insertUser.firstName ?? null,
+      lastName: insertUser.lastName ?? null,
+      profileImageUrl: insertUser.profileImageUrl ?? null,
       isAdmin: false,
-      createdAt: new Date(), 
-      updatedAt: new Date() 
+      createdAt: now,
+      updatedAt: now,
     };
     this.users.set(id, user);
     return user;
@@ -357,7 +362,10 @@ class DatabaseStorage implements IStorage {
       .from(datasets)
       .where(eq(datasets.userId, userId));
     
-    return results;
+    return results.map((dataset) => ({
+      ...dataset,
+      data: null as unknown,
+    }));
   }
 
   async getDataset(id: number): Promise<Dataset | undefined> {

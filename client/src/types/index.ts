@@ -1,13 +1,13 @@
 export interface Dataset {
   id: number;
-  userId?: number;
+  userId: string | null;
   filename: string;
   originalName: string;
   columns: string[];
   rowCount: number;
   fileSize: number;
-  uploadedAt?: Date;
-  data: any[];
+  uploadedAt: string | null;
+  data?: any[];
 }
 
 export interface Model {

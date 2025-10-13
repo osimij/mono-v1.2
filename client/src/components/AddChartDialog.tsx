@@ -37,7 +37,6 @@ const AGGREGATION_OPTIONS = [
 ];
 
 const SIZE_OPTIONS = [
-  { value: 'small', label: 'Compact (1/3 width)', description: 'Great for sparkline-style visuals' },
   { value: 'medium', label: 'Standard (1/2 width)', description: 'Balanced default layout' },
   { value: 'large', label: 'Wide (full width)', description: 'Ideal for spotlight charts' }
 ];
@@ -181,7 +180,7 @@ export function AddChartDialog({
                     className={`p-4 rounded-lg border-2 transition-colors text-left ${
                       chartType === type.value
                         ? 'border-primary bg-primary/10'
-                        : 'border-gray-200 hover:border-gray-300'
+                        : 'border-border hover:border-border/80'
                     }`}
                   >
                     <IconComponent className="w-6 h-6 mb-2" />

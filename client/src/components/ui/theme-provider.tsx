@@ -1,6 +1,16 @@
-import { ThemeProvider as NextThemesProvider } from "next-themes";
-import { type ThemeProviderProps } from "next-themes/dist/types";
+import type { ThemeProviderProps as InternalThemeProviderProps } from "@/hooks/use-theme";
+import { ThemeProvider as InternalThemeProvider } from "@/hooks/use-theme";
 
-export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
-  return <NextThemesProvider {...props}>{children}</NextThemesProvider>;
+type ThemeConfigProps = InternalThemeProviderProps & {
+  attribute?: string;
+  enableSystem?: boolean;
+};
+
+export function ThemeProvider({
+  children,
+  attribute: _attribute,
+  enableSystem: _enableSystem = true,
+  ...props
+}: ThemeConfigProps) {
+  return <InternalThemeProvider {...props}>{children}</InternalThemeProvider>;
 }

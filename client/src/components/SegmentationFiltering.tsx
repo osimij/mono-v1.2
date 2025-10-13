@@ -94,7 +94,7 @@ export function SegmentationFiltering({
   const analyzeColumns = (data: any[], columns: string[]): ColumnInfo[] => {
     return columns.map(col => {
       const values = data.map(row => row[col]).filter(val => val !== null && val !== undefined);
-      const uniqueValues = [...new Set(values)];
+      const uniqueValues = Array.from(new Set(values));
       
       // Check if it's a date column
       const datePattern = /^\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4}|\d{2}-\d{2}-\d{4}$/;
@@ -898,7 +898,7 @@ export function SegmentationFiltering({
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span>Original rows:</span>
-                <span className="font-medium">{dataset.data.length}</span>
+                <span className="font-medium">{dataset.data?.length ?? 0}</span>
               </div>
               <div className="flex justify-between">
                 <span>After filtering:</span>

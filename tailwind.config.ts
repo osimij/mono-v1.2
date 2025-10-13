@@ -159,6 +159,11 @@ const config = {
           border: "var(--sidebar-border)",
           ring: "var(--sidebar-ring)",
         },
+        button: {
+          background: "var(--button-background)",
+          hover: "var(--button-hover)",
+          selected: "var(--button-selected)",
+        },
       },
       keyframes: {
         "accordion-down": {

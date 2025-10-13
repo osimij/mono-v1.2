@@ -13,8 +13,8 @@
   --ds-surface-elevated: 210 18% 98%;
   --ds-surface-inverted: 222 47% 11%;
 
-  --ds-border-subtle: 216 15% 88%;
-  --ds-border-strong: 218 13% 72%;
+  --ds-border-subtle: 210 8% 18%;     /* #2B2E31 */
+  --ds-border-strong: 210 8% 18%;     /* #2B2E31 */
 
   --ds-text-primary: 222 47% 11%;
   --ds-text-soft: 218 15% 38%;
@@ -22,18 +22,18 @@
   --ds-text-subtle: 216 12% 61%;
   --ds-text-inverted: 210 20% 96%;
 
-  --ds-primary: 204 88% 53%;
-  --ds-primary-strong: 204 88% 45%;
-  --ds-primary-muted: 204 88% 92%;
-  --ds-primary-foreground: 0 0% 100%;
+  --ds-primary: 82 91% 55%;
+  --ds-primary-strong: 82 91% 44%;
+  --ds-primary-muted: 82 89% 92%;
+  --ds-primary-foreground: 222 47% 11%;
 
-  --ds-secondary: 221 83% 53%;
-  --ds-secondary-muted: 221 83% 92%;
-  --ds-secondary-foreground: 0 0% 100%;
+  --ds-secondary: 82 89% 70%;
+  --ds-secondary-muted: 82 89% 92%;
+  --ds-secondary-foreground: 222 47% 11%;
 
-  --ds-accent: 283 75% 57%;
-  --ds-accent-muted: 283 75% 92%;
-  --ds-accent-foreground: 0 0% 100%;
+  --ds-accent: 82 91% 55%;
+  --ds-accent-muted: 82 89% 92%;
+  --ds-accent-foreground: 222 47% 11%;
 
   --ds-success: 152 63% 45%;
   --ds-success-muted: 152 63% 92%;
@@ -51,8 +51,8 @@
   --ds-info-muted: 207 82% 90%;
   --ds-info-foreground: 210 90% 20%;
 
-  --ds-focus: 204 88% 53%;
-  --ds-ring: 204 88% 53%;
+  --ds-focus: 82 91% 55%;
+  --ds-ring: 0 0% 100% / 0.05;
 
   --shadow-xs: 0 1px 1px rgba(15, 23, 42, 0.05);
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.07);
@@ -130,36 +130,41 @@
   --sidebar-accent-foreground: hsl(var(--ds-text-primary));
   --sidebar-border: hsl(var(--ds-border-subtle));
   --sidebar-ring: hsl(var(--ds-ring));
+
+  /* Button specific colors */
+  --button-background: hsl(var(--ds-surface-muted));
+  --button-hover: hsl(var(--ds-surface-subtle));
+  --button-selected: hsl(var(--ds-surface-elevated));
 }
 
 .dark {
-  --ds-surface: 226 14% 14%;
-  --ds-surface-muted: 225 15% 12%;
-  --ds-surface-subtle: 226 16% 18%;
-  --ds-surface-elevated: 225 16% 20%;
-  --ds-surface-inverted: 210 20% 96%;
+  --ds-surface: 0 0% 9%;           /* #171717 */
+  --ds-surface-muted: 0 0% 9%;     /* #171717 */
+  --ds-surface-subtle: 0 0% 9%;    /* #171717 */
+  --ds-surface-elevated: 0 0% 9%;  /* #171717 */
+  --ds-surface-inverted: 0 0% 0%;  /* pure black */
 
-  --ds-border-subtle: 224 14% 26%;
-  --ds-border-strong: 224 13% 36%;
+  --ds-border-subtle: 210 8% 18%;     /* #2B2E31 */
+  --ds-border-strong: 210 8% 18%;     /* #2B2E31 */
 
-  --ds-text-primary: 210 20% 96%;
-  --ds-text-soft: 214 13% 82%;
-  --ds-text-muted: 214 11% 70%;
-  --ds-text-subtle: 215 11% 60%;
-  --ds-text-inverted: 222 47% 11%;
+  --ds-text-primary: 0 0% 100%;     /* white */
+  --ds-text-soft: 0 0% 90%;         /* light gray */
+  --ds-text-muted: 0 0% 70%;        /* medium gray */
+  --ds-text-subtle: 0 0% 50%;       /* darker gray */
+  --ds-text-inverted: 0 0% 0%;      /* black */
 
-  --ds-primary: 204 88% 60%;
-  --ds-primary-strong: 204 88% 68%;
-  --ds-primary-muted: 204 88% 30%;
-  --ds-primary-foreground: 210 20% 98%;
+  --ds-primary: 82 89% 70%;
+  --ds-primary-strong: 82 91% 55%;
+  --ds-primary-muted: 82 91% 25%;
+  --ds-primary-foreground: 222 47% 11%;
 
-  --ds-secondary: 221 83% 60%;
-  --ds-secondary-muted: 221 83% 36%;
-  --ds-secondary-foreground: 210 20% 96%;
+  --ds-secondary: 82 91% 55%;
+  --ds-secondary-muted: 82 91% 30%;
+  --ds-secondary-foreground: 222 47% 11%;
 
-  --ds-accent: 283 75% 65%;
-  --ds-accent-muted: 283 75% 38%;
-  --ds-accent-foreground: 210 20% 96%;
+  --ds-accent: 82 89% 70%;
+  --ds-accent-muted: 82 91% 30%;
+  --ds-accent-foreground: 222 47% 11%;
 
   --ds-success: 152 63% 55%;
   --ds-success-muted: 152 63% 32%;
@@ -177,8 +182,8 @@
   --ds-info-muted: 207 82% 36%;
   --ds-info-foreground: 210 20% 96%;
 
-  --ds-focus: 204 88% 60%;
-  --ds-ring: 204 88% 60%;
+  --ds-focus: 82 89% 70%;
+  --ds-ring: 0 0% 100% / 0.05;
 
   --background: hsl(var(--ds-surface));
   --foreground: hsl(var(--ds-text-primary));
@@ -200,14 +205,19 @@
   --destructive-foreground: hsl(var(--ds-danger-foreground));
   --ring: hsl(var(--ds-ring));
 
-  --sidebar-background: hsl(var(--ds-surface-muted));
-  --sidebar-foreground: hsl(var(--ds-text-muted));
+  --sidebar-background: hsl(0 0% 0%);      /* pure black #000000 */
+  --sidebar-foreground: hsl(0 0% 100%);    /* pure white #ffffff */
   --sidebar-primary: hsl(var(--ds-primary));
-  --sidebar-primary-foreground: hsl(var(--ds-text-inverted));
-  --sidebar-accent: hsl(var(--ds-surface-subtle));
-  --sidebar-accent-foreground: hsl(var(--ds-text-primary));
+  --sidebar-primary-foreground: hsl(0 0% 100%); /* pure white #ffffff */
+  --sidebar-accent: hsl(0 0% 11%);         /* #1d1d1f for selected/hover */
+  --sidebar-accent-foreground: hsl(0 0% 100%); /* pure white #ffffff */
   --sidebar-border: hsl(var(--ds-border-subtle));
   --sidebar-ring: hsl(var(--ds-ring));
+
+  /* Button specific colors */
+  --button-background: hsl(0 0% 15%);      /* #262626 */
+  --button-hover: hsl(0 0% 0%);            /* pure black */
+  --button-selected: hsl(0 0% 0%);          /* pure black */
 }
 
 @layer base {
@@ -241,8 +251,8 @@
   }
 
   ::selection {
-    color: hsl(var(--ds-text-inverted));
-    background: hsl(var(--ds-primary) / 0.85);
+    color: hsl(222 47% 11%);
+    background: hsl(var(--ds-primary) / 0.7);
   }
 }
 
@@ -340,6 +350,61 @@
 
   .bg-surface-inverted {
     background: var(--surface-inverted);
+  }
+
+  .bg-button {
+    background: var(--button-background);
+  }
+
+  .bg-button-hover:hover {
+    background: var(--button-hover);
+  }
+
+  .bg-button-selected {
+    background: var(--button-selected);
+  }
+
+  /* Ensure sidebar is pure black in dark mode */
+  .dark .bg-sidebar-background {
+    background-color: #000000 !important;
+  }
+
+  /* Ensure sidebar hover/selected states use #1d1d1f */
+  .dark .bg-sidebar-accent {
+    background-color: #1d1d1f !important;
+  }
+
+  .dark .hover\:bg-sidebar-accent\/50:hover {
+    background-color: #1d1d1f !important;
+    opacity: 0.5 !important;
+  }
+
+  /* Ensure sidebar text and icons are pure white in dark mode */
+  .dark .text-sidebar-foreground {
+    color: #ffffff !important;
+  }
+
+  .dark .text-sidebar-foreground\/60 {
+    color: #ffffff !important;
+    opacity: 0.6 !important;
+  }
+
+  .dark .text-sidebar-foreground\/80 {
+    color: #ffffff !important;
+    opacity: 0.8 !important;
+  }
+
+  /* Ensure all sidebar icons are white in dark mode */
+  .dark .dark\\:invert {
+    filter: invert(1) !important;
+  }
+
+  .dark .dark\\:brightness-0 {
+    filter: brightness(0) !important;
+  }
+
+  .dark .dark\\:contrast-200 {
+    filter: contrast(2) !important;
   }
 
   .scrollbar-hide::-webkit-scrollbar {

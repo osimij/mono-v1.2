@@ -293,18 +293,18 @@ export function ModelingPage() {
   };
 
   // Fetch datasets and models
-  const { data: datasets = [] } = useQuery({
+  const { data: datasets = [] } = useQuery<Dataset[]>({
     queryKey: ["/api/datasets"],
-    queryFn: api.datasets.getAll
+    queryFn: async () => (await api.datasets.getAll()) as Dataset[]
   });
 
-  const { data: models = [] } = useQuery({
+  const { data: models = [] } = useQuery<Model[]>({
     queryKey: ["/api/models"],
-    queryFn: api.models.getAll
+    queryFn: async () => (await api.models.getAll()) as Model[]
   });
 
   // Fetch suitable columns based on selected dataset and task
-  const { data: suitableColumns = [] } = useQuery({
+  const { data: suitableColumns = [] } = useQuery<string[]>({
     queryKey: ["/api/datasets", selectedDataset, "suitable-columns", selectedTask],
     queryFn: async () => {
       if (selectedDataset === "none" || selectedTask === "none") return [];

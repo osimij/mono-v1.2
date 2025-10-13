@@ -1,4 +1,4 @@
-import Papa from 'papaparse';
+import * as Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 
 export interface PreprocessingOptions {
@@ -323,28 +323,29 @@ export class DataPreprocessor {
   
   private static parseCSV(buffer: Buffer): { data: any[]; columns: string[] } {
     const csvText = buffer.toString('utf-8');
-    const parseResult = Papa.parse(csvText, {
+    const parseConfig: Papa.ParseConfig<Record<string, string>> = {
       header: true,
       skipEmptyLines: false, // We'll handle empty lines ourselves
       dynamicTyping: false, // We'll handle type conversion ourselves
-      trimHeaders: true,
-      quotes: true,
-      escapeChar: '"',
       delimiter: ',',
-      transform: (value: string) => {
+      transform: (value) => {
         // Handle common encoding issues and clean values
         return value?.trim() || '';
       }
-    });
+    };
+
+    const parseResult = Papa.parse<Record<string, string>>(csvText, parseConfig);
     
     // Only throw error if there are critical parsing errors, not minor ones
-    const criticalErrors = parseResult.errors.filter(error => 
+    const criticalErrors = parseResult.errors.filter((error: Papa.ParseError) => 
       error.type === 'Delimiter' || error.type === 'Quotes'
     );
     
     if (criticalErrors.length > 0) {
       console.log('CSV parsing critical errors:', criticalErrors);
-      throw new Error(`Critical CSV parsing errors: ${criticalErrors.map(e => e.message).join(', ')}`);
+      throw new Error(
+        `Critical CSV parsing errors: ${criticalErrors.map((error: Papa.ParseError) => error.message).join(', ')}`
+      );
     }
     
     if (parseResult.errors.length > 0) {
@@ -798,16 +799,18 @@ export class DataPreprocessor {
     const categoricalColumns = this.identifyCategoricalColumns(data, columns);
     
     for (const column of categoricalColumns) {
-      const uniqueValues = [...new Set(data.map(row => row[column]).filter(v => v != null && v !== ''))];
+      const uniqueValues = Array.from(new Set(data.map(row => row[column]).filter(v => v != null && v !== '')));
       const cardinality = uniqueValues.length;
       
       // Skip if no values or all unique (likely ID columns)
       if (cardinality === 0 || cardinality === data.length) continue;
       
-      let encodingType: 'onehot' | 'label' | 'target' | 'frequency';
+      let encodingType: 'onehot' | 'label' | 'frequency';
       
+      const strategy = config.encodingStrategy ?? 'auto';
+
       // Smart encoding strategy selection
-      if (config.encodingStrategy === 'auto') {
+      if (strategy === 'auto') {
         if (cardinality === 2) {
           // Binary: use label encoding (0/1)
           encodingType = 'label';
@@ -822,7 +825,9 @@ export class DataPreprocessor {
           encodingType = 'frequency';
         }
       } else {
-        encodingType = config.encodingStrategy as any;
+        encodingType = strategy === 'target'
+          ? 'frequency'
+          : strategy;
       }
 
       // Apply encoding
@@ -1491,5 +1496,52 @@ export class DataPreprocessor {
     }
 
     return { data, columns, suggestions };
+  }
+
+  private static calculatePearsonCorrelation(
+    data: any[],
+    columnA: string,
+    columnB: string
+  ): number {
+    const validPairs = data
+      .map((row) => {
+        const x = Number(row[columnA]);
+        const y = Number(row[columnB]);
+        return Number.isFinite(x) && Number.isFinite(y)
+          ? { x, y }
+          : null;
+      })
+      .filter((pair): pair is { x: number; y: number } => pair !== null);
+
+    if (validPairs.length === 0) {
+      return 0;
+    }
+
+    const xs = validPairs.map((pair) => pair.x);
+    const ys = validPairs.map((pair) => pair.y);
+
+    const mean = (values: number[]) =>
+      values.reduce((sum, val) => sum + val, 0) / values.length;
+
+    const meanX = mean(xs);
+    const meanY = mean(ys);
+
+    let numerator = 0;
+    let denominatorX = 0;
+    let denominatorY = 0;
+
+    validPairs.forEach(({ x, y }) => {
+      const diffX = x - meanX;
+      const diffY = y - meanY;
+      numerator += diffX * diffY;
+      denominatorX += diffX ** 2;
+      denominatorY += diffY ** 2;
+    });
+
+    if (denominatorX === 0 || denominatorY === 0) {
+      return 0;
+    }
+
+    return numerator / Math.sqrt(denominatorX * denominatorY);
   }
 }

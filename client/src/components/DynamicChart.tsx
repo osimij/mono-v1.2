@@ -64,7 +64,7 @@ const CHART_COLORS = [
 
 const GRID_STROKE = "rgba(148, 163, 184, 0.35)";
 const CURSOR_FILL = "rgba(148, 163, 184, 0.12)";
-const LABEL_FILL = "rgba(100, 116, 139, 0.9)";
+const LABEL_FILL = "#e6e9ea";
 
 const TOOLTIP_STYLE: CSSProperties = {
   backgroundColor: "rgba(255, 255, 255, 0.97)",
@@ -283,6 +283,69 @@ export function DynamicChart({
     if (chart.chartType === "pie") return false;
     return metricOptions.some(option => !yAxisColumns.includes(option.value));
   }, [chart.chartType, metricOptions, yAxisColumns]);
+
+  const yAxisReadable = useMemo(() => {
+    if (yAxisColumns.length === 0) return "selected metrics";
+    return yAxisColumns
+      .map(column => humanizeColumnName(column))
+      .join(yAxisColumns.length > 1 ? " and " : "");
+  }, [yAxisColumns]);
+
+  const xAxisReadable = useMemo(() => humanizeColumnName(chart.xAxis), [chart.xAxis]);
+
+  const groupByReadable = useMemo(
+    () => (chart.groupBy ? humanizeColumnName(chart.groupBy) : undefined),
+    [chart.groupBy]
+  );
+
+  const chartTitleId = `${chartUid}-title`;
+  const chartDescriptionId = `${chartUid}-description`;
+  const chartGeneratedDescriptionId = `${chartUid}-description-generated`;
+
+  const generatedDescription = useMemo(() => {
+    const detailSegments: string[] = [];
+    const aggregationPrefix = chart.aggregation
+      ? `${AGGREGATION_LABEL[chart.aggregation].toLowerCase()} of `
+      : "";
+
+    detailSegments.push(`${aggregationPrefix}${yAxisReadable} by ${xAxisReadable}`);
+
+    if (groupByReadable) {
+      detailSegments.push(`with ${groupByReadable} breakdown`);
+    }
+
+    if (hasFilter && chart.filterColumn) {
+      detailSegments.push(
+        `filtered to ${humanizeColumnName(chart.filterColumn)} equals ${String(chart.filterValue)}`
+      );
+    }
+
+    if (chartData.length > 0) {
+      detailSegments.push(
+        `based on ${chartData.length.toLocaleString()} ${
+          chartData.length === 1 ? "data point" : "data points"
+        }`
+      );
+    }
+
+    const chartLabel = chartTypeDisplay?.label ?? "Chart";
+    return `${chartLabel} showing ${detailSegments.join(", ")}.`;
+  }, [
+    chart.aggregation,
+    chart.filterColumn,
+    chart.filterValue,
+    chartData.length,
+    chartTypeDisplay?.label,
+    groupByReadable,
+    hasFilter,
+    xAxisReadable,
+    yAxisReadable
+  ]);
+
+  const hasManualDescription = Boolean(chart.description && chart.description.trim().length > 0);
+  const describedBy = hasManualDescription
+    ? `${chartDescriptionId} ${chartGeneratedDescriptionId}`.trim()
+    : chartDescriptionId;
 
   const handleAddSeries = useCallback(() => {
     const nextOption = metricOptions.find(option => !yAxisColumns.includes(option.value));
@@ -554,20 +617,32 @@ export function DynamicChart({
   return (
     <Card
       className={cn(
-        "relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/70 bg-white/95 text-slate-900 shadow-[0_12px_40px_-24px_rgba(15,23,42,0.45)] transition-colors",
-        "dark:border-slate-800/70 dark:bg-slate-900/90 dark:text-slate-100 dark:shadow-[0_12px_40px_-20px_rgba(8,15,30,0.8)]"
+        "relative flex flex-col overflow-hidden rounded-2xl border border-border bg-white/95 text-slate-900 shadow-[0_12px_40px_-24px_rgba(15,23,42,0.45)] transition-colors",
+        "dark:bg-[#171717] dark:text-slate-100 dark:shadow-[0_12px_40px_-20px_rgba(8,15,30,0.8)]"
       )}
+      role="group"
+      aria-labelledby={chartTitleId}
+      aria-describedby={describedBy}
     >
-      <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-slate-200/60 pb-3 dark:border-slate-800/60">
+      <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-border pb-3">
         <div className="space-y-1">
-          <CardTitle className="text-base font-semibold leading-tight">
+          <CardTitle id={chartTitleId} className="text-base font-semibold leading-tight">
             {chart.title}
           </CardTitle>
-          {chart.description ? (
-            <CardDescription className="text-xs leading-relaxed">
-              {chart.description}
+          {hasManualDescription ? (
+            <>
+              <CardDescription id={chartDescriptionId} className="text-xs leading-relaxed">
+                {chart.description}
+              </CardDescription>
+              <p id={chartGeneratedDescriptionId} className="sr-only">
+                {generatedDescription}
+              </p>
+            </>
+          ) : (
+            <CardDescription id={chartDescriptionId} className="text-xs leading-relaxed">
+              {generatedDescription}
             </CardDescription>
-          ) : null}
+          )}
         </div>
         <div className="flex shrink-0 gap-1 text-slate-500">
           <Button
@@ -591,7 +666,7 @@ export function DynamicChart({
         </div>
       </CardHeader>
 
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200/60 bg-slate-50/70 px-4 py-3 dark:border-slate-800/60 dark:bg-slate-900/60">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-slate-50/70 px-4 py-3 dark:bg-[#171717]">
         <div className="flex flex-wrap items-center gap-2 md:gap-3">
           {seriesMeta.map((series, index) => {
             const optionsForSeries: ChartSelectOption[] = [
@@ -624,7 +699,7 @@ export function DynamicChart({
             <button
               type="button"
               onClick={handleAddSeries}
-              className="flex h-10 items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-slate-400 hover:text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-slate-200"
+              className="flex h-10 items-center gap-2 rounded-lg border border-dashed border-border bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-border/80 hover:text-slate-800 dark:bg-[#171717] dark:text-slate-300 dark:hover:text-slate-200"
             >
               <Plus className="h-3.5 w-3.5" />
               Add metric
@@ -729,7 +804,7 @@ function ChartControlSelect({
         <button
           type="button"
           className={cn(
-            "relative flex h-10 min-w-[160px] items-center justify-between gap-2 rounded-lg border border-slate-200/70 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:text-slate-100"
+            "relative flex h-10 min-w-[160px] items-center justify-between gap-2 rounded-lg border border-border bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-border/80 hover:text-slate-900 dark:bg-[#171717] dark:text-slate-200 dark:hover:text-slate-100"
           )}
         >
           {accentColor ? (
@@ -789,7 +864,7 @@ function ChartFilterControl({ label, icon, hasFilter, onEdit, onClear }: ChartFi
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex h-10 min-w-[150px] items-center justify-between gap-2 rounded-lg border border-slate-200/70 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:text-slate-100"
+          className="flex h-10 min-w-[150px] items-center justify-between gap-2 rounded-lg border border-border bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-border/80 hover:text-slate-900 dark:bg-[#171717] dark:text-slate-200 dark:hover:text-slate-100"
         >
           <span className="flex flex-1 items-center gap-2 truncate">
             {icon}

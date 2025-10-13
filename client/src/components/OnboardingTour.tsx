@@ -274,7 +274,7 @@ export function OnboardingTour({ isOpen, onClose, onNavigate }: OnboardingTourPr
           transform: highlightedElement ? 'none' : 'translate(-50%, -50%)'
         }}
       >
-        <Card className="bg-white dark:bg-gray-800 border-orange-200 dark:border-orange-800 shadow-xl">
+        <Card className="bg-white dark:bg-gray-800 border-border shadow-xl">
           <CardContent className="p-6">
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center space-x-3">
@@ -345,7 +345,7 @@ export function OnboardingTour({ isOpen, onClose, onNavigate }: OnboardingTourPr
             </div>
 
             {/* Progress indicator */}
-            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+            <div className="mt-4 pt-4 border-t border-border">
               <div className="flex space-x-1">
                 {tourSteps.map((_, index) => (
                   <div

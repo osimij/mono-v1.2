@@ -9,18 +9,7 @@ import { DataPreprocessor } from "@/components/DataPreprocessor";
 import { Database, Search as SearchIcon, Eye, Table as TableIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import { PageHeader, PageSection, PageShell } from "@/components/layout/Page";
-
-interface Dataset {
-  id: number;
-  userId: string;
-  filename: string;
-  originalName: string;
-  fileSize: number;
-  rowCount?: number;
-  columns?: string[];
-  uploadedAt: string;
-  data?: any[];
-}
+import type { Dataset } from "@/types";
 
 const CLEANING_STEPS = [
   { id: 1, label: "Select dataset" },
@@ -88,7 +77,7 @@ export function DataCleaningPage() {
       try {
         setIsLoading(true);
         setError(null);
-        const data = await api.datasets.getAll();
+        const data = (await api.datasets.getAll()) as Dataset[];
         setDatasets(data);
       } catch (err) {
         console.error("Error fetching datasets:", err);
@@ -114,7 +103,7 @@ export function DataCleaningPage() {
     try {
       setIsLoadingDataset(true);
       setSelectedDataset(dataset);
-      const details = await api.datasets.getById(dataset.id);
+      const details = (await api.datasets.getById(dataset.id)) as Dataset;
       setSelectedDataset(details);
       setCurrentStep(2);
     } catch (err) {
@@ -304,6 +293,9 @@ export function DataCleaningPage() {
                               <tbody>
                                 {filteredDatasets.map((dataset) => {
                                   const isSelected = selectedDataset?.id === dataset.id;
+                                  const uploadedLabel = dataset.uploadedAt
+                                    ? new Date(dataset.uploadedAt).toLocaleDateString()
+                                    : "—";
                                   return (
                                     <tr
                                       key={dataset.id}
@@ -329,9 +321,7 @@ export function DataCleaningPage() {
                                       <td className="p-2 text-sm text-text-soft">
                                         {(dataset.fileSize / 1024).toFixed(1)} KB
                                       </td>
-                                      <td className="p-2 text-sm text-text-soft">
-                                        {new Date(dataset.uploadedAt).toLocaleDateString()}
-                                      </td>
+                                      <td className="p-2 text-sm text-text-soft">{uploadedLabel}</td>
                                     </tr>
                                   );
                                 })}

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PageHeader, PageSection, PageShell } from "@/components/layout/Page";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/hooks/use-theme";
 import {
   Moon,
   Sun,

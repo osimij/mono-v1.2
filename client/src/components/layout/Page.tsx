@@ -72,7 +72,7 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        "flex flex-col gap-6 rounded-2xl bg-surface-elevated/60 px-6 py-6 shadow-xs ring-1 ring-border/60 backdrop-blur-sm md:px-8",
+        "flex flex-col gap-6 rounded-2xl bg-surface-elevated/60 px-6 py-6 shadow-xs backdrop-blur-sm md:px-8",
         alignment,
         className,
       )}
@@ -121,8 +121,8 @@ const SURFACE_CLASS: Record<
   NonNullable<PageSectionProps["surface"]>,
   string
 > = {
-  card: "bg-surface-elevated shadow-sm ring-1 ring-border/60",
-  muted: "bg-surface-muted ring-1 ring-border/40",
+  card: "bg-surface-elevated shadow-sm",
+  muted: "bg-surface-muted",
   transparent: "",
 };
 

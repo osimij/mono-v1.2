@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -20,44 +20,85 @@ import {
   Cell
 } from "recharts";
 
+interface AdminAnalytics {
+  totalUsers: number;
+  totalDatasets: number;
+  totalModels: number;
+  totalChats: number;
+  activeSessions: number;
+  userActivity: Array<{ date: string; users: number }>;
+  featureUsage: Array<{ name: string; value: number; color: string }>;
+}
+
+interface AdminUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  isAdmin: boolean;
+  createdAt?: string;
+}
+
+interface SystemHealthStats {
+  databasePerformance: number;
+  apiResponse: number;
+  storageUsage: number;
+  activeSessionsLoad: number;
+}
+
+interface StatCard {
+  title: string;
+  value: number;
+  change: string;
+  icon: typeof Users;
+  accent: string;
+}
+
+interface SystemHealthMetric {
+  label: string;
+  value: number;
+  progress?: number;
+  isPercentage?: boolean;
+}
+
 export function AdminPage() {
   const [timeRange, setTimeRange] = useState("7d");
 
   // Fetch admin analytics
-  const { data: analytics } = useQuery({
+  const { data: analytics } = useQuery<AdminAnalytics>({
     queryKey: ["/api/admin/analytics", timeRange],
     queryFn: async () => {
       const response = await fetch(`/api/admin/analytics?range=${timeRange}`, {
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch analytics');
-      return response.json();
+      return response.json() as Promise<AdminAnalytics>;
     }
   });
 
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<AdminUser[]>({
     queryKey: ["/api/admin/users"],
     queryFn: async () => {
       const response = await fetch('/api/admin/users', {
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch users');
-      return response.json();
+      return response.json() as Promise<AdminUser[]>;
     }
   });
 
-  const { data: systemStats } = useQuery({
+  const { data: systemStats } = useQuery<SystemHealthStats>({
     queryKey: ["/api/admin/system"],
     queryFn: async () => {
       const response = await fetch('/api/admin/system', {
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch system stats');
-      return response.json();
+      return response.json() as Promise<SystemHealthStats>;
     }
   });
 
-  const statsCards = [
+  const statsCards: StatCard[] = [
     {
       title: "Total Users",
       value: analytics?.totalUsers || 0,
@@ -88,7 +129,7 @@ export function AdminPage() {
     }
   ];
 
-  const userActivityData = analytics?.userActivity || [
+  const userActivityData: AdminAnalytics["userActivity"] = analytics?.userActivity || [
     { date: '2024-01-01', users: 12 },
     { date: '2024-01-02', users: 15 },
     { date: '2024-01-03', users: 8 },
@@ -98,7 +139,7 @@ export function AdminPage() {
     { date: '2024-01-07', users: 30 }
   ];
 
-  const featureUsageData =
+  const featureUsageData: AdminAnalytics["featureUsage"] =
     analytics?.featureUsage ||
     [
       { name: 'Data Upload', value: 35, color: '#3b82f6' },
@@ -107,7 +148,7 @@ export function AdminPage() {
       { name: 'Chat Assistant', value: 15, color: '#f59e0b' }
     ];
 
-  const systemHealthMetrics = [
+  const systemHealthMetrics: SystemHealthMetric[] = [
     {
       label: "Database performance",
       value: systemStats?.databasePerformance ?? 92,
@@ -137,7 +178,7 @@ export function AdminPage() {
   const exportAnalytics = () => {
     const data = {
       analytics,
-      users: users.map(u => ({ ...u, id: '[REDACTED]' })), // Anonymize IDs
+      users: users.map((u) => ({ ...u, id: '[REDACTED]' })), // Anonymize IDs
       exportDate: new Date().toISOString()
     };
     
@@ -292,7 +333,7 @@ export function AdminPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {users.slice(0, 10).map((user: any, index: number) => (
+              {users.slice(0, 10).map((user, index) => (
                 <div
                   key={index}
                   className="flex items-center justify-between rounded-xl border border-border/60 p-3"

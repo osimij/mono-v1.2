@@ -6,7 +6,7 @@ import { requireAuth as authRequireAuth, requireAdmin as authRequireAdmin } from
 import { sql } from "drizzle-orm";
 import { insertDatasetSchema, insertModelSchema, insertChatSessionSchema, dashboardConfigs, type ChatMessage } from "@shared/schema";
 import multer from "multer";
-import Papa from "papaparse";
+import * as Papa from "papaparse";
 import * as XLSX from "xlsx";
 import OpenAI from "openai";
 import { generateDataInsights, generateChartRecommendations, generateModelingAdvice } from "./gemini";
@@ -381,7 +381,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Parse CSV file
       if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
         const csvText = file.buffer.toString('utf-8');
-        const parseResult = Papa.parse(csvText, {
+        const parseResult = Papa.parse<Record<string, unknown>>(csvText, {
           header: true,
           skipEmptyLines: true,
           dynamicTyping: true
@@ -391,12 +391,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: "Failed to parse CSV file" });
         }
 
-        const rawData = parseResult.data;
+        const rawData = parseResult.data as Record<string, unknown>[];
         const allColumns = parseResult.meta.fields || [];
         
         // Filter out empty rows first
-        const nonEmptyRows = rawData.filter((row: any) => 
-          Object.values(row).some(val => val !== null && val !== undefined && val !== '')
+        const nonEmptyRows = rawData.filter((row) =>
+          Object.values(row).some((val) => val !== null && val !== undefined && val !== '')
         );
         
         // Filter out empty columns (columns that have no meaningful data)
@@ -413,9 +413,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
         // Clean the data to only include active columns and non-empty rows
-        parsedData = nonEmptyRows.map(row => {
-          const cleanRow: any = {};
-          columns.forEach(col => {
+        parsedData = nonEmptyRows.map((row) => {
+          const cleanRow: Record<string, unknown> = {};
+          columns.forEach((col) => {
             cleanRow[col] = row[col];
           });
           return cleanRow;
@@ -592,18 +592,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Create a temporary buffer from the dataset data
+      const datasetRows = Array.isArray(dataset.data)
+        ? (dataset.data as Record<string, unknown>[])
+        : [];
+
       const csvContent = [
         dataset.columns.join(','),
-        ...dataset.data.map(row => 
-          dataset.columns.map(col => {
-            const value = row[col];
-            if (value === null || value === undefined) return '';
-            const stringValue = String(value);
-            if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
-              return `"${stringValue.replace(/"/g, '""')}"`;
-            }
-            return stringValue;
-          }).join(',')
+        ...datasetRows.map((row) =>
+          dataset.columns
+            .map((col) => {
+              const value = row[col];
+              if (value === null || value === undefined) return '';
+              const stringValue = String(value);
+              if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+                return `"${stringValue.replace(/"/g, '""')}"`;
+              }
+              return stringValue;
+            })
+            .join(',')
         )
       ].join('\n');
 
@@ -1095,13 +1101,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         // Auto-select the user's first available dataset
         const userId = session.userId;
-        const availableDatasets = await storage.getDatasets(userId);
-        
-        if (availableDatasets.length > 0) {
-          dataset = availableDatasets[0]; // Use the first available dataset
-          console.log(`Auto-selected dataset: ${dataset.originalName} for chat session ${sessionId}`);
-        } else if (userId !== "1") {
-          // If authenticated user has no datasets, also check for demo data
+        if (userId) {
+          const availableDatasets = await storage.getDatasets(userId);
+          if (availableDatasets.length > 0) {
+            dataset = availableDatasets[0];
+            console.log(`Auto-selected dataset: ${dataset.originalName} for chat session ${sessionId}`);
+          }
+        }
+
+        if (!dataset) {
           const demoDatasets = await storage.getDatasets("1");
           if (demoDatasets.length > 0) {
             dataset = demoDatasets[0];
@@ -1178,13 +1186,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Model not found" });
       }
 
+      if (model.datasetId == null) {
+        return res.status(400).json({ error: "Model is missing associated dataset" });
+      }
+
       const dataset = await storage.getDataset(model.datasetId);
-      if (!dataset || !dataset.data) {
+      if (!dataset || !Array.isArray(dataset.data)) {
         return res.status(404).json({ error: "Dataset not found" });
       }
 
       // Use the model's actual feature list (which was filtered during training)
-      const featureColumns = model.modelData?.features || dataset.columns.filter((col: string) => col !== model.targetColumn);
+      const featureColumns =
+        model.modelData &&
+        typeof model.modelData === "object" &&
+        model.modelData !== null &&
+        Array.isArray((model.modelData as { features?: unknown }).features)
+          ? ((model.modelData as { features: string[] }).features)
+          : dataset.columns.filter((col: string) => col !== model.targetColumn);
       
       if (mode === 'single') {
         // Single prediction
@@ -1289,7 +1307,7 @@ function makeSinglePrediction(model: any, dataset: any, inputs: any, featureColu
     
   } else if (model.type === 'regression') {
     // Regression prediction based on similar data points
-    const numericTargets = targetValues.filter((val: any) => typeof val === 'number');
+    const numericTargets = targetValues.filter((val): val is number => typeof val === 'number');
     const mean = numericTargets.reduce((sum: number, val: number) => sum + val, 0) / numericTargets.length;
     const stdDev = Math.sqrt(numericTargets.reduce((sum: number, val: number) => sum + Math.pow(val - mean, 2), 0) / numericTargets.length);
     
@@ -1298,8 +1316,14 @@ function makeSinglePrediction(model: any, dataset: any, inputs: any, featureColu
     let prediction = mean; // Fallback to mean
     
     if (similarPoints.length > 0) {
-      const weightedSum = similarPoints.reduce((sum: number, point: any) => sum + (point.target * point.similarity), 0);
-      const totalWeight = similarPoints.reduce((sum: number, point: any) => sum + point.similarity, 0);
+      const weightedSum = similarPoints.reduce(
+        (sum: number, point: { target: number; similarity: number }) => sum + point.target * point.similarity,
+        0
+      );
+      const totalWeight = similarPoints.reduce(
+        (sum: number, point: { similarity: number }) => sum + point.similarity,
+        0
+      );
       prediction = weightedSum / totalWeight;
     }
     
@@ -1317,13 +1341,13 @@ function makeSinglePrediction(model: any, dataset: any, inputs: any, featureColu
     
   } else if (model.type === 'time_series') {
     // Time series prediction based on trend analysis
-    const numericTargets = targetValues.filter((val: any) => typeof val === 'number');
+    const numericTargets = targetValues.filter((val): val is number => typeof val === 'number');
     const recentValues = numericTargets.slice(-Math.min(12, Math.floor(numericTargets.length * 0.3)));
     
     // Calculate trend
     let trend = 0;
     if (recentValues.length > 1) {
-      const changes = [];
+      const changes: number[] = [];
       for (let i = 1; i < recentValues.length; i++) {
         changes.push(recentValues[i] - recentValues[i-1]);
       }
@@ -1370,8 +1394,15 @@ function calculateInputScore(inputs: any, data: any[], targetClass: any, targetC
         const columnValues = matchingRows.map((row: any) => row[col]).filter((val: any) => val != null);
         
         if (typeof inputValue === 'number') {
-          const mean = columnValues.reduce((sum: number, val: any) => sum + parseFloat(val), 0) / columnValues.length;
-          const stdDev = Math.sqrt(columnValues.reduce((sum: number, val: any) => sum + Math.pow(parseFloat(val) - mean, 2), 0) / columnValues.length);
+          const mean =
+            columnValues.reduce((sum: number, val: string | number) => sum + parseFloat(String(val)), 0) /
+            columnValues.length;
+          const stdDev = Math.sqrt(
+            columnValues.reduce(
+              (sum: number, val: string | number) => sum + Math.pow(parseFloat(String(val)) - mean, 2),
+              0
+            ) / columnValues.length
+          );
           const zScore = Math.abs((inputValue - mean) / (stdDev || 1));
           totalScore += Math.max(0, 1 - (zScore / 3)); // Closer to mean = higher score
         } else {
@@ -1534,17 +1565,17 @@ function calculateCorrelations(data: any[], numericalColumns: string[]): any[] {
 
 function calculatePearsonCorrelation(data: any[], col1: string, col2: string): number {
   const pairs = data
-    .map(row => [row[col1], row[col2]])
-    .filter(pair => typeof pair[0] === 'number' && typeof pair[1] === 'number');
+    .map((row) => [row[col1], row[col2]] as [unknown, unknown])
+    .filter((pair): pair is [number, number] => typeof pair[0] === 'number' && typeof pair[1] === 'number');
   
   if (pairs.length < 2) return 0;
   
   const n = pairs.length;
-  const sum1 = pairs.reduce((sum, pair) => sum + pair[0], 0);
-  const sum2 = pairs.reduce((sum, pair) => sum + pair[1], 0);
-  const sum1Sq = pairs.reduce((sum, pair) => sum + pair[0] * pair[0], 0);
-  const sum2Sq = pairs.reduce((sum, pair) => sum + pair[1] * pair[1], 0);
-  const pSum = pairs.reduce((sum, pair) => sum + pair[0] * pair[1], 0);
+  const sum1 = pairs.reduce((sum: number, pair: [number, number]) => sum + pair[0], 0);
+  const sum2 = pairs.reduce((sum: number, pair: [number, number]) => sum + pair[1], 0);
+  const sum1Sq = pairs.reduce((sum: number, pair: [number, number]) => sum + pair[0] * pair[0], 0);
+  const sum2Sq = pairs.reduce((sum: number, pair: [number, number]) => sum + pair[1] * pair[1], 0);
+  const pSum = pairs.reduce((sum: number, pair: [number, number]) => sum + pair[0] * pair[1], 0);
   
   const num = pSum - (sum1 * sum2 / n);
   const den = Math.sqrt((sum1Sq - sum1 * sum1 / n) * (sum2Sq - sum2 * sum2 / n));
@@ -1578,8 +1609,12 @@ function generateInsights(summary: any, data: any[]): string[] {
 }
 
 function calculateRealMetrics(type: string, dataset: any, targetColumn: string, algorithm: string): any {
-  const data = dataset.data;
-  const targetValues = data.map((row: any) => row[targetColumn]).filter((val: any) => val != null);
+  const dataRows = Array.isArray(dataset.data)
+    ? (dataset.data as Record<string, unknown>[])
+    : [];
+  const targetValues: Array<string | number> = dataRows
+    .map((row) => row[targetColumn])
+    .filter((val): val is string | number => val != null);
   
   if (targetValues.length === 0) {
     return {};
@@ -1601,11 +1636,9 @@ function calculateRealMetrics(type: string, dataset: any, targetColumn: string, 
   switch (type) {
     case 'classification':
       // Analyze actual class distribution
-      const uniqueClassesSet = new Set(targetValues);
-      const uniqueClasses: any[] = [];
-      uniqueClassesSet.forEach(cls => uniqueClasses.push(cls));
-      const classCounts = uniqueClasses.map(cls => 
-        targetValues.filter((val: any) => val === cls).length
+      const uniqueClasses = Array.from(new Set(targetValues));
+      const classCounts = uniqueClasses.map((cls) =>
+        targetValues.filter((val) => val === cls).length
       );
       const totalSamples = targetValues.length;
       const classDistribution = classCounts.map(count => count / totalSamples);
@@ -1658,7 +1691,7 @@ function calculateRealMetrics(type: string, dataset: any, targetColumn: string, 
 
     case 'regression':
       // Analyze numeric target distribution
-      const numericTargets = targetValues.filter((val: any) => typeof val === 'number');
+      const numericTargets = targetValues.filter((val): val is number => typeof val === 'number');
       if (numericTargets.length === 0) return {};
       
       const mean = numericTargets.reduce((sum: number, val: number) => sum + val, 0) / numericTargets.length;
@@ -1705,11 +1738,11 @@ function calculateRealMetrics(type: string, dataset: any, targetColumn: string, 
 
     case 'time_series':
       // Analyze temporal patterns in the data
-      const timeValues = targetValues.filter((val: any) => typeof val === 'number');
+      const timeValues = targetValues.filter((val): val is number => typeof val === 'number');
       if (timeValues.length < 3) return {};
       
       // Calculate trend and seasonality indicators
-      const periodicChanges = [];
+      const periodicChanges: number[] = [];
       for (let i = 1; i < timeValues.length; i++) {
         if (timeValues[i-1] !== 0) {
           const percentChange = Math.abs((timeValues[i] - timeValues[i-1]) / timeValues[i-1]);
@@ -1718,11 +1751,11 @@ function calculateRealMetrics(type: string, dataset: any, targetColumn: string, 
       }
       
       const avgVolatility = periodicChanges.length > 0 ? 
-        periodicChanges.reduce((sum, change) => sum + change, 0) / periodicChanges.length : 0.1;
+        periodicChanges.reduce((sum: number, change: number) => sum + change, 0) / periodicChanges.length : 0.1;
       
       // Calculate actual coefficient of variation for the time series
-      const tsMean = timeValues.reduce((sum, val) => sum + val, 0) / timeValues.length;
-      const tsVariance = timeValues.reduce((sum, val) => sum + Math.pow(val - tsMean, 2), 0) / timeValues.length;
+      const tsMean = timeValues.reduce((sum: number, val: number) => sum + val, 0) / timeValues.length;
+      const tsVariance = timeValues.reduce((sum: number, val: number) => sum + Math.pow(val - tsMean, 2), 0) / timeValues.length;
       const tsCV = Math.sqrt(tsVariance) / Math.abs(tsMean);
       
       // MAPE based on actual data volatility and predictability
@@ -1834,10 +1867,14 @@ function analyzeCustomerBehavior(dataset: any, numericalColumns: string[], categ
     
     // Spending analysis
     if (spendingCol) {
-      const spendingValues = data.map((row: any) => row[spendingCol]).filter((val: any) => val && !isNaN(val)).map(Number);
+      const spendingValues = data
+        .map((row: any) => Number(row[spendingCol]))
+        .filter((val: number) => Number.isFinite(val));
       if (spendingValues.length > 0) {
-        const avgSpending = Math.round(spendingValues.reduce((sum, val) => sum + val, 0) / spendingValues.length);
-        const highSpenders = spendingValues.filter(val => val > avgSpending * 1.5).length;
+        const avgSpending = Math.round(
+          spendingValues.reduce((sum: number, val: number) => sum + val, 0) / spendingValues.length
+        );
+        const highSpenders = spendingValues.filter((val: number) => val > avgSpending * 1.5).length;
         const highSpenderPercentage = Math.round((highSpenders / spendingValues.length) * 100);
         analysis.push(`• Average spending: $${avgSpending.toLocaleString()}`);
         analysis.push(`• High-value customers: ${highSpenderPercentage}%`);
@@ -1877,10 +1914,12 @@ function analyzeRevenuePerformance(dataset: any, numericalColumns: string[], cat
   );
   
   if (data.length > 0 && revenueCol) {
-    const revenueValues = data.map((row: any) => row[revenueCol]).filter((val: any) => val && !isNaN(val)).map(Number);
+    const revenueValues = data
+      .map((row: any) => Number(row[revenueCol]))
+      .filter((val: number) => Number.isFinite(val));
     
     if (revenueValues.length > 0) {
-      const totalRevenue = revenueValues.reduce((sum, val) => sum + val, 0);
+      const totalRevenue = revenueValues.reduce((sum: number, val: number) => sum + val, 0);
       const avgRevenue = Math.round(totalRevenue / revenueValues.length);
       const maxRevenue = Math.max(...revenueValues);
       
@@ -1935,9 +1974,11 @@ function analyzeProductPerformance(dataset: any, numericalColumns: string[], cat
     analysis.push(`• Total products analyzed: ${data.length.toLocaleString()}`);
     
     if (priceCol) {
-      const prices = data.map((row: any) => row[priceCol]).filter((val: any) => val && !isNaN(val)).map(Number);
+      const prices = data
+        .map((row: any) => Number(row[priceCol]))
+        .filter((val: number) => Number.isFinite(val));
       if (prices.length > 0) {
-        const avgPrice = Math.round(prices.reduce((sum, val) => sum + val, 0) / prices.length);
+        const avgPrice = Math.round(prices.reduce((sum: number, val: number) => sum + val, 0) / prices.length);
         const maxPrice = Math.max(...prices);
         const minPrice = Math.min(...prices);
         
@@ -1945,8 +1986,8 @@ function analyzeProductPerformance(dataset: any, numericalColumns: string[], cat
         analysis.push(`• Price range: $${minPrice} - $${maxPrice.toLocaleString()}`);
         
         // Price segments
-        const affordableProducts = prices.filter(price => price < avgPrice * 0.7).length;
-        const premiumProducts = prices.filter(price => price > avgPrice * 1.5).length;
+        const affordableProducts = prices.filter((price: number) => price < avgPrice * 0.7).length;
+        const premiumProducts = prices.filter((price: number) => price > avgPrice * 1.5).length;
         const affordablePercentage = Math.round((affordableProducts / prices.length) * 100);
         const premiumPercentage = Math.round((premiumProducts / prices.length) * 100);
         
@@ -1990,9 +2031,11 @@ function analyzeTransactionPatterns(dataset: any, numericalColumns: string[], ca
     analysis.push(`• Total transactions: ${data.length.toLocaleString()}`);
     
     if (amountCol) {
-      const amounts = data.map((row: any) => row[amountCol]).filter((val: any) => val && !isNaN(val)).map(Number);
+      const amounts = data
+        .map((row: any) => Number(row[amountCol]))
+        .filter((val: number) => Number.isFinite(val));
       if (amounts.length > 0) {
-        const totalAmount = amounts.reduce((sum, val) => sum + val, 0);
+        const totalAmount = amounts.reduce((sum: number, val: number) => sum + val, 0);
         const avgAmount = Math.round(totalAmount / amounts.length);
         const maxAmount = Math.max(...amounts);
         
@@ -2001,8 +2044,8 @@ function analyzeTransactionPatterns(dataset: any, numericalColumns: string[], ca
         analysis.push(`• Largest transaction: $${maxAmount.toLocaleString()}`);
         
         // Transaction size distribution
-        const smallTransactions = amounts.filter(amount => amount < avgAmount * 0.5).length;
-        const largeTransactions = amounts.filter(amount => amount > avgAmount * 2).length;
+        const smallTransactions = amounts.filter((amount: number) => amount < avgAmount * 0.5).length;
+        const largeTransactions = amounts.filter((amount: number) => amount > avgAmount * 2).length;
         const smallPercentage = Math.round((smallTransactions / amounts.length) * 100);
         const largePercentage = Math.round((largeTransactions / amounts.length) * 100);
         
@@ -2039,7 +2082,7 @@ function performGeneralAnalysis(dataset: any, dataType: string, numericalColumns
     const values = data.map((row: any) => row[firstNumCol]).filter((val: any) => val !== null && val !== undefined && !isNaN(val)).map(Number);
     
     if (values.length > 0) {
-      const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
+      const avg = values.reduce((sum: number, val: number) => sum + val, 0) / values.length;
       const max = Math.max(...values);
       const min = Math.min(...values);
       

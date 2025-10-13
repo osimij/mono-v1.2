@@ -202,7 +202,7 @@ export function AddMetricCardDialog({
                     className={`p-3 rounded-lg border-2 transition-colors flex items-center justify-center ${
                       icon === opt.value
                         ? 'border-primary bg-primary/10'
-                        : 'border-gray-200 hover:border-gray-300'
+                        : 'border-border hover:border-border/80'
                     }`}
                     title={opt.label}
                   >
@@ -224,7 +224,7 @@ export function AddMetricCardDialog({
                   className={`p-3 rounded-lg border-2 transition-colors ${
                     color === opt.value
                       ? 'border-primary bg-primary/10'
-                      : 'border-gray-200 hover:border-gray-300'
+                      : 'border-border hover:border-border/80'
                   }`}
                   title={opt.label}
                 >

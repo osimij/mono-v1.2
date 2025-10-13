@@ -145,7 +145,7 @@ export function FileUpload({
   return (
     <div className={cn("space-y-4", className)}>
       {!user && !showPendingStatus && (
-        <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
+        <Alert className="border-border bg-orange-50 dark:bg-orange-950">
           <LogIn className="h-4 w-4 text-orange-600 dark:text-orange-400" />
           <AlertDescription className="text-orange-800 dark:text-orange-200">
             Sign in required for personal file uploads. Demo data available without sign-in.
@@ -154,7 +154,7 @@ export function FileUpload({
       )}
 
       {showPendingStatus && (
-        <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+        <Alert className="border-border bg-blue-50 dark:bg-blue-950">
           <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
           <AlertDescription className="text-blue-800 dark:text-blue-200">
             <div className="space-y-2">
@@ -183,9 +183,9 @@ export function FileUpload({
           "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors file-upload",
           isDragActive 
             ? "border-primary bg-primary/5" 
-            : "border-gray-300 dark:border-gray-600 hover:border-primary",
+            : "border-border hover:border-primary",
           (uploading || showUploadProgress) && "pointer-events-none opacity-50",
-          showPendingStatus && "border-blue-300 dark:border-blue-600"
+          showPendingStatus && "border-border"
         )}
       >
         <input {...getInputProps()} />

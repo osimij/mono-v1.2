@@ -50,17 +50,19 @@ interface ColumnInfo {
   uniqueValues?: number;
 }
 
+type DatasetRow = Record<string, unknown>;
+
 export function DataFilteringPage() {
   const [selectedDataset, setSelectedDataset] = useState<Dataset | null>(null);
   const [draftFilters, setDraftFilters] = useState<FilterCondition[]>([]);
   const [appliedFilters, setAppliedFilters] = useState<FilterCondition[]>([]);
-  const [filteredData, setFilteredData] = useState<any[]>([]);
+  const [filteredData, setFilteredData] = useState<DatasetRow[]>([]);
   const [columnInfo, setColumnInfo] = useState<ColumnInfo[]>([]);
   const [isLoadingDataset, setIsLoadingDataset] = useState(false);
   const { toast } = useToast();
 
   // Fetch datasets
-  const { data: datasets = [], isLoading: datasetsLoading } = useQuery({
+  const { data: datasets = [], isLoading: datasetsLoading } = useQuery<Dataset[]>({
     queryKey: ["/api/datasets"],
     queryFn: api.datasets.getAll,
     staleTime: 0,
@@ -70,25 +72,28 @@ export function DataFilteringPage() {
   // Analyze dataset columns when dataset changes
   useEffect(() => {
     if (selectedDataset && selectedDataset.data && selectedDataset.data.length > 0) {
-      const analyzedColumns = analyzeColumns(selectedDataset.data, selectedDataset.columns);
+      const analyzedColumns = analyzeColumns(
+        selectedDataset.data as DatasetRow[],
+        selectedDataset.columns
+      );
       setColumnInfo(analyzedColumns);
-      setFilteredData(selectedDataset.data);
+      setFilteredData(selectedDataset.data as DatasetRow[]);
     }
   }, [selectedDataset]);
 
   // Apply filters when appliedFilters change
   useEffect(() => {
     if (selectedDataset && selectedDataset.data && selectedDataset.data.length > 0) {
-      const filtered = applyFilters(selectedDataset.data, appliedFilters);
+      const filtered = applyFilters(selectedDataset.data as DatasetRow[], appliedFilters);
       setFilteredData(filtered);
     }
   }, [appliedFilters, selectedDataset]);
 
   // Analyze column types and properties
-  const analyzeColumns = (data: any[], columns: string[]): ColumnInfo[] => {
+  const analyzeColumns = (data: DatasetRow[], columns: string[]): ColumnInfo[] => {
     return columns.map(col => {
       const values = data.map(row => row[col]).filter(val => val !== null && val !== undefined);
-      const uniqueValues = [...new Set(values)];
+      const uniqueValues = Array.from(new Set(values));
       
       // Check if it's a date column
       const datePattern = /^\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4}|\d{2}-\d{2}-\d{4}$/;
@@ -103,7 +108,9 @@ export function DataFilteringPage() {
       }
       
       // Check if it's numeric
-      const numericValues = values.map(val => parseFloat(val)).filter(val => !isNaN(val));
+      const numericValues = values
+        .map(val => Number(val))
+        .filter((val): val is number => Number.isFinite(val));
       const isNumeric = numericValues.length > values.length * 0.8;
       
       if (isNumeric) {
@@ -137,7 +144,7 @@ export function DataFilteringPage() {
   };
 
   // Apply filters to data
-  const applyFilters = (data: any[], currentFilters: FilterCondition[]) => {
+  const applyFilters = (data: DatasetRow[], currentFilters: FilterCondition[]) => {
     if (!data || currentFilters.length === 0) return data;
 
     return data.filter(row => {
@@ -161,7 +168,13 @@ export function DataFilteringPage() {
             return filter.values?.includes(String(value));
           case 'date_between':
             if (filter.dateFrom && filter.dateTo) {
-              const rowDate = new Date(value);
+              if (value === null || value === undefined) {
+                return false;
+              }
+              const rowDate = value instanceof Date ? value : new Date(String(value));
+              if (Number.isNaN(rowDate.getTime())) {
+                return false;
+              }
               return rowDate >= filter.dateFrom && rowDate <= filter.dateTo;
             }
             return true;

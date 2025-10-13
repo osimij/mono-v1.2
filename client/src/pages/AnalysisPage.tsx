@@ -27,6 +27,7 @@ import {
   AreaChart,
   Area
 } from "recharts";
+import type { Dataset } from "@/types";
 
 const COLORS = ["#5B8DEF", "#00C9A7", "#FFC75F", "#FF8066", "#B39CD0", "#6EE7B7"];
 
@@ -41,6 +42,10 @@ interface ChartConfig {
   aggregation?: string;
 }
 
+type DatasetRow = Record<string, unknown>;
+type ChartValuePoint = { name: string | number; value: number };
+type ScatterPoint = { x: number; y: number };
+
 export function AnalysisPage() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -53,28 +58,41 @@ export function AnalysisPage() {
     aggregation: "count"
   });
 
-  const { data: datasets = [], isLoading } = useQuery({
-    queryKey: ["/api/datasets"]
+  const { data: datasets = [], isLoading } = useQuery<Dataset[]>({
+    queryKey: ["/api/datasets"],
+    queryFn: async () => {
+      const response = await fetch("/api/datasets", { credentials: "include" });
+      if (!response.ok) {
+        throw new Error("Failed to load datasets");
+      }
+      return response.json() as Promise<Dataset[]>;
+    }
   });
 
-  const selectedDatasetData = useMemo(() => {
-    if (!datasets || selectedDataset === "none") return null;
-    const datasetArray = datasets as any[];
-    return datasetArray.find((d: any) => d.id.toString() === selectedDataset) || null;
+  const selectedDatasetData = useMemo<Dataset | null>(() => {
+    if (!datasets.length || selectedDataset === "none") return null;
+    return datasets.find((dataset) => dataset.id.toString() === selectedDataset) ?? null;
   }, [datasets, selectedDataset]);
 
   const getNumericalColumns = () => {
-    if (!selectedDatasetData?.data?.length) return [];
-    const firstRow = selectedDatasetData.data[0];
-    return selectedDatasetData.columns.filter(
-      (col: string) => typeof firstRow[col] === "number" && !Number.isNaN(firstRow[col])
-    );
+    if (!selectedDatasetData) return [];
+    const rows = selectedDatasetData.data as DatasetRow[] | undefined;
+    if (!rows || rows.length === 0) return [];
+    const firstRow = rows[0];
+
+    return selectedDatasetData.columns.filter((col) => {
+      const value = firstRow[col];
+      return typeof value === "number" && !Number.isNaN(value);
+    });
   };
 
   const getCategoricalColumns = () => {
-    if (!selectedDatasetData?.data?.length) return [];
-    const firstRow = selectedDatasetData.data[0];
-    return selectedDatasetData.columns.filter((col: string) => {
+    if (!selectedDatasetData) return [];
+    const rows = selectedDatasetData.data as DatasetRow[] | undefined;
+    if (!rows || rows.length === 0) return [];
+    const firstRow = rows[0];
+
+    return selectedDatasetData.columns.filter((col) => {
       const value = firstRow[col];
       return typeof value === "string" || typeof value === "boolean";
     });
@@ -99,92 +117,113 @@ export function AnalysisPage() {
     }
   };
 
-  const processChartData = (chart: ChartConfig) => {
-    if (!selectedDatasetData?.data) return [];
-
-    const data = selectedDatasetData.data;
+  const processChartData = (chart: ChartConfig): ChartValuePoint[] | ScatterPoint[] => {
+    const data = (selectedDatasetData?.data ?? []) as DatasetRow[];
+    if (data.length === 0) return [];
 
     if (chart.type === "pie" && chart.xColumn) {
       const counts: Record<string, number> = {};
-      data.forEach((row: any) => {
-        const value = String(row[chart.xColumn!]);
-        counts[value] = (counts[value] || 0) + 1;
+      data.forEach((row) => {
+        const rawValue = row[chart.xColumn as string];
+        const key = rawValue == null || rawValue === "" ? "Unknown" : String(rawValue);
+        counts[key] = (counts[key] ?? 0) + 1;
       });
+
       return Object.entries(counts)
-        .map(([name, value]) => ({ name, value }))
+        .map<ChartValuePoint>(([name, value]) => ({ name, value }))
         .sort((a, b) => b.value - a.value);
     }
 
     if (chart.type === "scatter" && chart.xColumn && chart.yColumn) {
-      return data.slice(0, 200).map((row: any) => ({
-        x: Number(row[chart.xColumn!]),
-        y: Number(row[chart.yColumn!])
-      }));
+      return data
+        .slice(0, 200)
+        .map<ScatterPoint>((row) => ({
+          x: Number(row[chart.xColumn as string]),
+          y: Number(row[chart.yColumn as string])
+        }))
+        .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
     }
 
     if (chart.xColumn && getCategoricalColumns().includes(chart.xColumn)) {
-      const grouped: Record<string, any> = {};
-      data.forEach((row: any) => {
-        const key = String(row[chart.xColumn!]);
+      const grouped: Record<string, { name: string; values: number[] }> = {};
+
+      data.forEach((row) => {
+        const keyRaw = row[chart.xColumn as string];
+        const key = keyRaw == null || keyRaw === "" ? "Unknown" : String(keyRaw);
+
         if (!grouped[key]) {
-          grouped[key] = { name: key, values: [] as number[] };
+          grouped[key] = { name: key, values: [] };
         }
+
         if (chart.yColumn) {
-          grouped[key].values.push(Number(row[chart.yColumn]));
+          const numericValue = Number(row[chart.yColumn as string]);
+          if (Number.isFinite(numericValue)) {
+            grouped[key].values.push(numericValue);
+          }
         }
       });
 
       return Object.values(grouped)
-        .map((group: any) => {
-          const result: any = { name: group.name };
+        .map<ChartValuePoint>((group) => {
           if (chart.yColumn && group.values.length > 0) {
             switch (chart.aggregation) {
               case "sum":
-                result.value = group.values.reduce((a: number, b: number) => a + b, 0);
-                break;
+                return {
+                  name: group.name,
+                  value: group.values.reduce((total, value) => total + value, 0)
+                };
               case "avg":
-                result.value =
-                  group.values.reduce((a: number, b: number) => a + b, 0) / group.values.length;
-                break;
+                return {
+                  name: group.name,
+                  value:
+                    group.values.reduce((total, value) => total + value, 0) / group.values.length
+                };
               case "max":
-                result.value = Math.max(...group.values);
-                break;
+                return { name: group.name, value: Math.max(...group.values) };
               case "min":
-                result.value = Math.min(...group.values);
-                break;
+                return { name: group.name, value: Math.min(...group.values) };
               default:
-                result.value = group.values.length;
+                return { name: group.name, value: group.values.length };
             }
-          } else {
-            result.value = group.values.length;
           }
-          return result;
+
+          return { name: group.name, value: group.values.length };
         })
         .sort((a, b) => b.value - a.value);
     }
 
     if (chart.xColumn && getNumericalColumns().includes(chart.xColumn)) {
-      let processedData = data.slice(0, 100).map((row: any) => ({
-        name: Number(row[chart.xColumn!]),
-        value: chart.yColumn ? Number(row[chart.yColumn]) : 1
-      }));
+      let processedData = data.slice(0, 100).map<ChartValuePoint>((row) => {
+        const nameValue = Number(row[chart.xColumn as string]);
+        const yValue = chart.yColumn ? Number(row[chart.yColumn as string]) : 1;
+        return { name: nameValue, value: yValue };
+      });
+
+      processedData = processedData.filter(
+        (point) => Number.isFinite(Number(point.name)) && Number.isFinite(point.value)
+      );
 
       if (chart.yColumn && chart.yColumn.toLowerCase().includes("age")) {
-        processedData = processedData.filter((d) => d.value >= 0 && d.value <= 120);
+        processedData = processedData.filter((point) => point.value >= 0 && point.value <= 120);
       } else if (chart.yColumn) {
         processedData = filterOutliers(processedData);
       }
 
-      return processedData.sort((a, b) => a.name - b.name);
+      return processedData.sort(
+        (a, b) => Number(a.name) - Number(b.name)
+      );
     }
 
-    let finalData = data.slice(0, 50).map((row: any, index: number) => ({
-      name: chart.xColumn ? String(row[chart.xColumn]) : `Row ${index + 1}`,
-      value: chart.yColumn ? Number(row[chart.yColumn]) : 1
-    }));
+    let finalData = data.slice(0, 50).map<ChartValuePoint>((row, index) => {
+      const nameRaw = chart.xColumn ? row[chart.xColumn as string] : undefined;
+      const name = nameRaw == null || nameRaw === "" ? `Row ${index + 1}` : String(nameRaw);
+      const valueRaw = chart.yColumn ? Number(row[chart.yColumn as string]) : 1;
+      const value = Number.isFinite(valueRaw) ? valueRaw : 0;
+      return { name, value };
+    });
 
     if (chart.yColumn && chart.yColumn.toLowerCase().includes("age")) {
-      finalData = finalData.filter((d) => d.value >= 0 && d.value <= 120);
+      finalData = finalData.filter((point) => point.value >= 0 && point.value <= 120);
     } else if (chart.yColumn) {
       finalData = filterOutliers(finalData);
     }
@@ -192,7 +231,7 @@ export function AnalysisPage() {
     return finalData;
   };
 
-  const filterOutliers = (data: { value: number }[]) => {
+  const filterOutliers = (data: ChartValuePoint[]): ChartValuePoint[] => {
     const values = data.map((d) => d.value).filter((v) => !Number.isNaN(v));
     if (values.length <= 5) return data;
 
@@ -221,10 +260,11 @@ export function AnalysisPage() {
     };
 
     switch (chart.type) {
-      case "bar":
+      case "bar": {
+        const barData = chartData as ChartValuePoint[];
         return (
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
+            <BarChart data={barData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis label={{ value: getYAxisLabel(), angle: -90, position: "insideLeft" }} />
@@ -233,10 +273,12 @@ export function AnalysisPage() {
             </BarChart>
           </ResponsiveContainer>
         );
-      case "line":
+      }
+      case "line": {
+        const lineData = chartData as ChartValuePoint[];
         return (
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData}>
+            <LineChart data={lineData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis label={{ value: getYAxisLabel(), angle: -90, position: "insideLeft" }} />
@@ -245,10 +287,12 @@ export function AnalysisPage() {
             </LineChart>
           </ResponsiveContainer>
         );
-      case "area":
+      }
+      case "area": {
+        const areaData = chartData as ChartValuePoint[];
         return (
           <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={chartData}>
+            <AreaChart data={areaData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis label={{ value: getYAxisLabel(), angle: -90, position: "insideLeft" }} />
@@ -257,19 +301,21 @@ export function AnalysisPage() {
             </AreaChart>
           </ResponsiveContainer>
         );
-      case "pie":
+      }
+      case "pie": {
+        const pieData = chartData as ChartValuePoint[];
         return (
           <ResponsiveContainer width="100%" height={300}>
             <RechartsPieChart>
               <Pie
                 dataKey="value"
-                data={chartData}
+                data={pieData}
                 cx="50%"
                 cy="50%"
                 outerRadius={90}
                 label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
               >
-                {chartData.map((entry: any, index: number) => (
+                {pieData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
@@ -277,7 +323,9 @@ export function AnalysisPage() {
             </RechartsPieChart>
           </ResponsiveContainer>
         );
-      case "scatter":
+      }
+      case "scatter": {
+        const scatterData = chartData as ScatterPoint[];
         return (
           <ResponsiveContainer width="100%" height={300}>
             <ScatterChart>
@@ -295,10 +343,11 @@ export function AnalysisPage() {
                 label={{ value: chart.yColumn || "Y-Axis", angle: -90, position: "insideLeft" }}
               />
               <Tooltip cursor={{ strokeDasharray: "3 3" }} />
-              <Scatter data={chartData} fill="#5B8DEF" />
+              <Scatter data={scatterData} fill="#5B8DEF" />
             </ScatterChart>
           </ResponsiveContainer>
         );
+      }
       default:
         return <p className="text-sm text-text-muted">Unsupported chart type.</p>;
     }
@@ -339,24 +388,27 @@ export function AnalysisPage() {
   const getSmartInsights = () => {
     if (!selectedDatasetData?.data?.length) return [];
 
-    const insights: string[] = [];
-    const data = selectedDatasetData.data;
+    const rows = (selectedDatasetData.data ?? []) as DatasetRow[];
     const columns = selectedDatasetData.columns;
-    const dataLength = data.length;
+    const dataLength = rows.length;
+    const insights: string[] = [];
 
-    const activeColumns = columns.filter((col) => {
-      const values = data.map((row) => row[col]);
-      const nonEmpty = values.filter((val) => val != null && val !== "");
-      return nonEmpty.length > 0;
-    });
+    const getNonEmptyValues = (column: string) =>
+      rows
+        .map((row) => row[column])
+        .filter((value): value is string | number | boolean => value != null && value !== "");
+
+    const activeColumns = columns.filter((column) => getNonEmptyValues(column).length > 0);
 
     if (activeColumns.length > 0) {
-      const missingCount = data.reduce((count, row) => {
-        return (
-          count +
-          activeColumns.filter((col) => row[col] == null || row[col] === "").length
-        );
+      const missingCount = rows.reduce((count, row) => {
+        const missingInRow = activeColumns.filter((column) => {
+          const value = row[column];
+          return value == null || value === "";
+        }).length;
+        return count + missingInRow;
       }, 0);
+
       const missingPercentage = ((missingCount / (dataLength * activeColumns.length)) * 100).toFixed(1);
 
       insights.push(`Dataset overview: ${activeColumns.length} active columns out of ${columns.length}.`);
@@ -371,17 +423,20 @@ export function AnalysisPage() {
       }
     }
 
-    const numericalColumns = activeColumns.filter((col) => {
-      const values = data.map((row) => row[col]).filter((val) => val != null && val !== "");
-      return values.length > 0 && values.every((val) => !Number.isNaN(Number(val)));
+    const numericalColumns = activeColumns.filter((column) => {
+      const values = getNonEmptyValues(column).map((value) => Number(value));
+      return values.length > 0 && values.every((value) => Number.isFinite(value));
     });
 
-    numericalColumns.forEach((col) => {
-      const values = data.map((row) => Number(row[col])).filter((val) => !Number.isNaN(val));
-      if (values.length === 0) return;
+    numericalColumns.forEach((column) => {
+      const numericValues = getNonEmptyValues(column)
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value));
 
-      const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
-      const sorted = [...values].sort((a, b) => a - b);
+      if (numericValues.length === 0) return;
+
+      const mean = numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length;
+      const sorted = [...numericValues].sort((a, b) => a - b);
       const median =
         sorted.length % 2 === 0
           ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
@@ -390,58 +445,66 @@ export function AnalysisPage() {
       const skewness = Math.abs(mean - median) / (mean || 1);
       if (skewness > 0.3) {
         insights.push(
-          `${col}: Highly skewed distribution (mean: ${mean.toFixed(1)}, median: ${median.toFixed(1)}).`
+          `${column}: Highly skewed distribution (mean: ${mean.toFixed(1)}, median: ${median.toFixed(1)}).`
         );
       }
 
       const q1 = sorted[Math.floor(sorted.length * 0.25)];
       const q3 = sorted[Math.floor(sorted.length * 0.75)];
       const iqr = q3 - q1;
-      const outliers = values.filter((val) => val < q1 - 1.5 * iqr || val > q3 + 1.5 * iqr);
-      if (outliers.length > values.length * 0.1) {
-        insights.push(`${col}: ${outliers.length} potential outliers identified.`);
+      const outliers = numericValues.filter(
+        (value) => value < q1 - 1.5 * iqr || value > q3 + 1.5 * iqr
+      );
+
+      if (outliers.length > numericValues.length * 0.1) {
+        insights.push(`${column}: ${outliers.length} potential outliers identified.`);
       }
     });
 
-    const categoricalColumns = activeColumns.filter((col) => {
-      const values = data.map((row) => row[col]).filter((val) => val != null && val !== "");
+    const categoricalColumns = activeColumns.filter((column) => {
+      const values = getNonEmptyValues(column).map((value) => String(value));
       const uniqueValues = new Set(values);
       return uniqueValues.size > 1 && uniqueValues.size < values.length * 0.5;
     });
 
-    categoricalColumns.forEach((col) => {
-      const values = data.map((row) => row[col]).filter((val) => val != null && val !== "");
-      const valueCounts = values.reduce((counts, val) => {
-        counts[val] = (counts[val] || 0) + 1;
+    categoricalColumns.forEach((column) => {
+      const values = getNonEmptyValues(column).map((value) => String(value));
+      const valueCounts = values.reduce<Record<string, number>>((counts, value) => {
+        counts[value] = (counts[value] ?? 0) + 1;
         return counts;
-      }, {} as Record<string, number>);
+      }, {});
 
       const sortedCounts = Object.entries(valueCounts).sort(([, a], [, b]) => b - a);
-      const topValue = sortedCounts[0];
-      const topPercentage = ((topValue[1] / values.length) * 100).toFixed(1);
+      const [topLabel, topCount] = sortedCounts[0] ?? ["", 0];
+      const topPercentage = values.length > 0 ? ((topCount / values.length) * 100).toFixed(1) : "0";
 
       if (sortedCounts.length <= 5 && parseFloat(topPercentage) > 40) {
-        insights.push(`${col}: Dominated by "${topValue[0]}" (${topPercentage}% of records).`);
+        insights.push(`${column}: Dominated by "${topLabel}" (${topPercentage}% of records).`);
       } else if (sortedCounts.length > 20) {
-        insights.push(`${col}: High diversity with ${sortedCounts.length} distinct values.`);
+        insights.push(`${column}: High diversity with ${sortedCounts.length} distinct values.`);
       }
     });
 
     if (numericalColumns.length >= 2) {
-      const correlations: {
+      const correlations: Array<{
         col1: string;
         col2: string;
         correlation: string;
         strength: string;
-      }[] = [];
+      }> = [];
 
       for (let i = 0; i < numericalColumns.length; i++) {
         for (let j = i + 1; j < numericalColumns.length; j++) {
           const col1 = numericalColumns[i];
           const col2 = numericalColumns[j];
 
-          const values1 = data.map((row) => Number(row[col1])).filter((val) => !Number.isNaN(val));
-          const values2 = data.map((row) => Number(row[col2])).filter((val) => !Number.isNaN(val));
+          const values1 = getNonEmptyValues(col1)
+            .map((value) => Number(value))
+            .filter((value) => Number.isFinite(value));
+
+          const values2 = getNonEmptyValues(col2)
+            .map((value) => Number(value))
+            .filter((value) => Number.isFinite(value));
 
           if (values1.length === values2.length && values1.length > 10) {
             const correlation = calculateCorrelation(values1, values2);
@@ -521,7 +584,7 @@ export function AnalysisPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Select a dataset…</SelectItem>
-                  {(datasets as any[]).map((dataset: any) => (
+                  {datasets.map((dataset) => (
                     <SelectItem key={dataset.id} value={dataset.id.toString()}>
                       {dataset.originalName || dataset.filename}
                     </SelectItem>

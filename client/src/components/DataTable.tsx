@@ -174,7 +174,7 @@ export function DataTable({ data, columns, pageSize = 10 }: DataTableProps) {
                 {columns.map((column) => (
                   <TableCell key={column}>
                     {column.endsWith('_cluster') ? (
-                      <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800">
+                      <Badge variant="outline" className="bg-orange-50 text-orange-700 border-border dark:bg-orange-950 dark:text-orange-300">
                         {formatCellValue(row[column], column)}
                       </Badge>
                     ) : (

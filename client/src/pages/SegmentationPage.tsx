@@ -34,9 +34,9 @@ export function SegmentationPage() {
   const { user } = useAuth();
 
   // Fetch datasets
-  const { data: datasets = [], isLoading: datasetsLoading } = useQuery({
+  const { data: datasets = [] as Dataset[], isLoading: datasetsLoading } = useQuery<Dataset[]>({
     queryKey: ["/api/datasets"],
-    queryFn: api.datasets.getAll,
+    queryFn: async () => (await api.datasets.getAll()) as Dataset[],
     staleTime: 0,
     refetchOnMount: true
   });
@@ -44,7 +44,7 @@ export function SegmentationPage() {
   // Handle dataset selection
   const handleDatasetSelect = (dataset: Dataset) => {
     setSelectedDataset(dataset);
-    setProcessedData(dataset.data);
+    setProcessedData(dataset.data ?? []);
     setActiveFilters([]);
     setActiveSegments([]);
     // Auto-expand filtering section after dataset selection
@@ -69,7 +69,7 @@ export function SegmentationPage() {
     setActiveFilters(filters);
     // Apply filters to the selected dataset
     if (selectedDataset) {
-      let filteredData = selectedDataset.data;
+      let filteredData = [...(selectedDataset.data ?? [])];
       
       // Apply filters
       filters.forEach(filter => {
@@ -531,7 +531,7 @@ export function SegmentationPage() {
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span>Original rows:</span>
-                          <span className="font-medium">{selectedDataset.data.length}</span>
+                          <span className="font-medium">{selectedDataset.data?.length ?? 0}</span>
                         </div>
                         <div className="flex justify-between">
                           <span>After filtering:</span>

@@ -14,17 +14,17 @@ export const semanticColors = {
     inverted: "210 20% 96%",
   },
   border: {
-    subtle: "216 15% 88%",
-    strong: "218 13% 72%",
+    subtle: "210 8% 18%",     // #2B2E31
+    strong: "210 8% 18%",     // #2B2E31
   },
   brand: {
-    primary: "204 88% 53%",
-    primaryStrong: "204 88% 45%",
-    primaryMuted: "204 88% 92%",
-    accent: "283 75% 57%",
-    accentMuted: "283 75% 92%",
-    secondary: "221 83% 53%",
-    secondaryMuted: "221 83% 92%",
+    primary: "82 91% 55%",        // lime-400 #a3e635
+    primaryStrong: "82 91% 44%",   // lime-500 #84cc16
+    primaryMuted: "82 89% 92%",    // lime light muted
+    accent: "82 91% 55%",          // lime-400 (same as primary)
+    accentMuted: "82 89% 92%",     // lime light muted
+    secondary: "82 89% 70%",       // lime-300 #bef264
+    secondaryMuted: "82 89% 92%",  // lime light muted
   },
   support: {
     success: "152 63% 45%",
@@ -37,8 +37,8 @@ export const semanticColors = {
     infoMuted: "207 82% 92%",
   },
   state: {
-    focus: "204 88% 53%",
-    ring: "204 88% 53%",
+    focus: "82 91% 55%",     // lime-400 (primary)
+    ring: "82 91% 55%",      // lime-400 (primary)
   },
 };
 

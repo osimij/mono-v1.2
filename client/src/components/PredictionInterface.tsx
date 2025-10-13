@@ -105,7 +105,7 @@ export function PredictionInterface({
           </Button>
         </div>
         
-        <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
+        <Alert className="border-border bg-orange-50 dark:bg-orange-950">
           <Lightbulb className="h-4 w-4 text-orange-600 dark:text-orange-400" />
           <AlertDescription className="text-orange-800 dark:text-orange-200">
             Fill in the values below based on your dataset columns. The model will predict: <strong>{model.targetColumn}</strong>
@@ -123,7 +123,7 @@ export function PredictionInterface({
                 placeholder="e.g., 6"
                 value={predictionData.monthsToForecast || ''}
                 onChange={(e) => setPredictionData({...predictionData, monthsToForecast: e.target.value})}
-                className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2"
+                className="w-full border border-border bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2"
               />
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 How many time periods ahead do you want to forecast?
@@ -149,7 +149,7 @@ export function PredictionInterface({
                     <select
                       value={predictionData[column] || ''}
                       onChange={(e) => setPredictionData({...predictionData, [column]: e.target.value})}
-                      className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2"
+                      className="w-full border border-border bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2"
                       required
                     >
                       <option value="">Select {column.replace(/_/g, ' ')}</option>
@@ -165,7 +165,7 @@ export function PredictionInterface({
                       placeholder={placeholder}
                       value={predictionData[column] || ''}
                       onChange={(e) => setPredictionData({...predictionData, [column]: e.target.value})}
-                      className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2"
+                      className="w-full border border-border bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2"
                       required
                     />
                   )}
@@ -184,7 +184,7 @@ export function PredictionInterface({
 
         {/* Prediction Result */}
         {predictionResult && (
-          <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+          <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-border rounded-lg">
             <div className="flex items-center space-x-2 mb-2">
               <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
               <span className="font-medium text-green-900 dark:text-green-100">
@@ -209,7 +209,7 @@ export function PredictionInterface({
 
         {/* Show validation warning if not enough data provided */}
         {featureColumns.length > 0 && Object.keys(predictionData).length < Math.min(featureColumns.length, 8) && (
-          <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
+          <Alert className="border-border bg-orange-50 dark:bg-orange-950">
             <Lightbulb className="h-4 w-4 text-orange-600 dark:text-orange-400" />
             <AlertDescription className="text-orange-800 dark:text-orange-200">
               Please fill in all required fields above to get an accurate prediction.
@@ -285,7 +285,7 @@ export function PredictionInterface({
           </Button>
         </div>
         
-        <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+        <Alert className="border-border bg-blue-50 dark:bg-blue-950">
           <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
           <AlertDescription className="text-blue-800 dark:text-blue-200">
             <div className="space-y-2">
@@ -297,7 +297,7 @@ export function PredictionInterface({
           </AlertDescription>
         </Alert>
 
-        <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center">
+        <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
           <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <div className="space-y-2">
             <p className="text-gray-600 dark:text-gray-300">
@@ -312,7 +312,7 @@ export function PredictionInterface({
             />
             <label
               htmlFor="batch-upload"
-              className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer"
+              className="inline-flex items-center px-4 py-2 border border-border rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer"
             >
               Choose File
             </label>
@@ -337,7 +337,7 @@ export function PredictionInterface({
 
         {/* Batch Results */}
         {predictionResult && predictionResult.predictions && (
-          <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+          <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-border rounded-lg">
             <div className="flex items-center space-x-2 mb-3">
               <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
               <span className="font-medium text-green-900 dark:text-green-100">
@@ -358,7 +358,7 @@ export function PredictionInterface({
                 </thead>
                 <tbody>
                   {predictionResult.predictions.slice(0, 10).map((pred: any, index: number) => (
-                    <tr key={index} className="border-t dark:border-gray-600">
+                    <tr key={index} className="border-t border-border">
                       <td className="px-3 py-2">{index + 1}</td>
                       <td className="px-3 py-2 font-medium">{pred.value}</td>
                       <td className="px-3 py-2">{pred.confidence}%</td>
@@ -367,7 +367,7 @@ export function PredictionInterface({
                 </tbody>
               </table>
               {predictionResult.predictions.length > 10 && (
-                <div className="p-2 text-center text-xs text-gray-500 dark:text-gray-400 border-t dark:border-gray-600">
+                <div className="p-2 text-center text-xs text-gray-500 dark:text-gray-400 border-t border-border">
                   Showing first 10 of {predictionResult.predictions.length} predictions
                 </div>
               )}

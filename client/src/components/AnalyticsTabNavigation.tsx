@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import type { KeyboardEvent } from "react";
 import { useLocation } from "wouter";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,7 @@ export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationPr
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const checkScroll = () => {
     const container = scrollContainerRef.current;
@@ -56,6 +58,48 @@ export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationPr
     setTimeout(checkScroll, 300);
   };
 
+  const focusAndActivateTab = useCallback((index: number) => {
+    const total = ANALYTICS_TABS.length;
+    const normalizedIndex = (index + total) % total;
+    const tab = ANALYTICS_TABS[normalizedIndex];
+
+    tabRefs.current[normalizedIndex]?.focus();
+    setLocation(tab.path);
+  }, [setLocation]);
+
+  const handleTabKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+      switch (event.key) {
+        case "ArrowRight":
+        case "ArrowDown":
+          event.preventDefault();
+          focusAndActivateTab(index + 1);
+          break;
+        case "ArrowLeft":
+        case "ArrowUp":
+          event.preventDefault();
+          focusAndActivateTab(index - 1);
+          break;
+        case "Home":
+          event.preventDefault();
+          focusAndActivateTab(0);
+          break;
+        case "End":
+          event.preventDefault();
+          focusAndActivateTab(ANALYTICS_TABS.length - 1);
+          break;
+        case " ":
+        case "Enter":
+          event.preventDefault();
+          setLocation(ANALYTICS_TABS[index].path);
+          break;
+        default:
+          break;
+      }
+    },
+    [focusAndActivateTab, setLocation]
+  );
+
   return (
     <nav 
       className="relative border-b border-border/60 bg-surface-elevated/80 backdrop-blur-md"
@@ -83,8 +127,9 @@ export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationPr
           style={{ scrollPaddingLeft: "36px", scrollPaddingRight: "36px" }}
         >
           <div className="flex items-center min-w-max px-2" role="tablist">
-            {ANALYTICS_TABS.map((tab) => {
+            {ANALYTICS_TABS.map((tab, tabIndex) => {
               const isActive = currentPath === tab.path;
+              const tabId = `analytics-tab-${tab.id}`;
               
               return (
                 <button
@@ -92,9 +137,16 @@ export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationPr
                   onClick={() => setLocation(tab.path)}
                   role="tab"
                   aria-selected={isActive}
+                  aria-controls="analytics-content-region"
+                  id={tabId}
+                  tabIndex={isActive ? 0 : -1}
+                  ref={element => {
+                    tabRefs.current[tabIndex] = element;
+                  }}
+                  onKeyDown={event => handleTabKeyDown(event, tabIndex)}
                   className={cn(
                     "relative rounded-t-lg px-4 py-4 text-sm font-medium transition-colors",
-                    "focus:outline-none hover:bg-surface-muted/80",
+                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 hover:bg-surface-muted/80",
                     isActive
                       ? "text-text-primary"
                       : "text-text-muted"
