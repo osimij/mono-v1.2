@@ -7,20 +7,23 @@
   --font-display: "Cal Sans", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --ds-surface: 0 0% 100%;
-  --ds-surface-muted: 210 16% 96%;
-  --ds-surface-subtle: 214 14% 92%;
-  --ds-surface-elevated: 210 18% 98%;
-  --ds-surface-inverted: 222 47% 11%;
+  /* Light Mode Surfaces - Professional grey palette */
+  --ds-surface: 0 0% 100%;              /* #FFFFFF - Pure white background */
+  --ds-surface-muted: 0 0% 96%;         /* #F5F5F7 - Apple-style light grey */
+  --ds-surface-subtle: 0 0% 94%;        /* #F0F0F2 - Slightly darker for hover */
+  --ds-surface-elevated: 0 0% 98%;      /* #FAFAFA - Elevated cards */
+  --ds-surface-inverted: 0 0% 0%;       /* #000000 - For dark text on light */
 
-  --ds-border-subtle: 210 8% 18%;     /* #2B2E31 */
-  --ds-border-strong: 210 8% 18%;     /* #2B2E31 */
+  /* Light Mode Borders - Subtle grey borders */
+  --ds-border-subtle: 0 0% 90%;         /* #E5E5E7 - Light grey borders */
+  --ds-border-strong: 0 0% 80%;         /* #CCCCCC - Stronger borders */
 
-  --ds-text-primary: 222 47% 11%;
-  --ds-text-soft: 218 15% 38%;
-  --ds-text-muted: 218 12% 47%;
-  --ds-text-subtle: 216 12% 61%;
-  --ds-text-inverted: 210 20% 96%;
+  /* Light Mode Text */
+  --ds-text-primary: 0 0% 10%;          /* #1A1A1A - Near black */
+  --ds-text-soft: 0 0% 30%;             /* #4D4D4D - Dark grey */
+  --ds-text-muted: 0 0% 45%;            /* #737373 - Medium grey */
+  --ds-text-subtle: 0 0% 60%;           /* #999999 - Light grey */
+  --ds-text-inverted: 0 0% 100%;        /* #FFFFFF - White text */
 
   --ds-primary: 82 91% 55%;
   --ds-primary-strong: 82 91% 44%;
@@ -121,37 +124,47 @@
   --chart-3: hsl(var(--ds-secondary));
   --chart-4: hsl(var(--ds-warning));
   --chart-5: hsl(var(--ds-accent));
+  --chart-primary: hsl(217 91% 60%);
+  --chart-success: hsl(152 63% 45%);
+  --chart-warning: hsl(38 92% 58%);
+  --chart-info: hsl(207 82% 55%);
+  --chart-accent-1: hsl(82 89% 70%);
+  --chart-accent-2: hsl(262 73% 65%);
 
-  --sidebar-background: hsl(var(--ds-surface));
-  --sidebar-foreground: hsl(var(--ds-text-muted));
+  /* Light Mode Sidebar */
+  --sidebar-background: 0 0% 100%;              /* #FFFFFF - White sidebar */
+  --sidebar-foreground: 0 0% 10%;               /* #1A1A1A - Dark text */
   --sidebar-primary: hsl(var(--ds-primary));
   --sidebar-primary-foreground: hsl(var(--ds-text-inverted));
-  --sidebar-accent: hsl(var(--ds-surface-muted));
-  --sidebar-accent-foreground: hsl(var(--ds-text-primary));
-  --sidebar-border: hsl(var(--ds-border-subtle));
+  --sidebar-accent: 0 0% 94%;                   /* #F0F0F2 - Hover state */
+  --sidebar-accent-foreground: 0 0% 10%;        /* #1A1A1A - Dark text */
+  --sidebar-border: 0 0% 90%;                   /* #E5E5E7 - Light border */
   --sidebar-ring: hsl(var(--ds-ring));
 
-  /* Button specific colors */
-  --button-background: hsl(var(--ds-surface-muted));
-  --button-hover: hsl(var(--ds-surface-subtle));
-  --button-selected: hsl(var(--ds-surface-elevated));
+  /* Light Mode Button Colors */
+  --button-background: 0 0% 96%;                /* #F5F5F7 - Light grey */
+  --button-hover: 0 0% 94%;                     /* #F0F0F2 - Slightly darker */
+  --button-selected: 0 0% 92%;                  /* #EBEBEB - Selected state */
 }
 
 .dark {
-  --ds-surface: 0 0% 9%;           /* #171717 */
-  --ds-surface-muted: 0 0% 9%;     /* #171717 */
-  --ds-surface-subtle: 0 0% 9%;    /* #171717 */
-  --ds-surface-elevated: 0 0% 9%;  /* #171717 */
-  --ds-surface-inverted: 0 0% 0%;  /* pure black */
+  /* Dark Mode Surfaces - Professional dark palette with hierarchy */
+  --ds-surface: 0 0% 5%;                /* #0D0D0D - Very dark grey for main content */
+  --ds-surface-muted: 0 0% 10%;         /* #1A1A1A - Slightly lighter for cards */
+  --ds-surface-subtle: 0 0% 14%;        /* #242424 - For elevated elements */
+  --ds-surface-elevated: 0 0% 16%;      /* #292929 - Highest elevation */
+  --ds-surface-inverted: 0 0% 100%;     /* #FFFFFF - White for inverted */
 
-  --ds-border-subtle: 210 8% 18%;     /* #2B2E31 */
-  --ds-border-strong: 210 8% 18%;     /* #2B2E31 */
+  /* Dark Mode Borders - Subtle but visible */
+  --ds-border-subtle: 0 0% 18%;         /* #2D2D2D - Subtle dark borders */
+  --ds-border-strong: 0 0% 25%;         /* #404040 - Stronger borders */
 
-  --ds-text-primary: 0 0% 100%;     /* white */
-  --ds-text-soft: 0 0% 90%;         /* light gray */
-  --ds-text-muted: 0 0% 70%;        /* medium gray */
-  --ds-text-subtle: 0 0% 50%;       /* darker gray */
-  --ds-text-inverted: 0 0% 0%;      /* black */
+  /* Dark Mode Text */
+  --ds-text-primary: 0 0% 100%;         /* #FFFFFF - Pure white */
+  --ds-text-soft: 0 0% 90%;             /* #E6E6E6 - Light grey */
+  --ds-text-muted: 0 0% 70%;            /* #B3B3B3 - Medium grey */
+  --ds-text-subtle: 0 0% 50%;           /* #808080 - Darker grey */
+  --ds-text-inverted: 0 0% 0%;          /* #000000 - Black */
 
   --ds-primary: 82 89% 70%;
   --ds-primary-strong: 82 91% 55%;
@@ -205,19 +218,20 @@
   --destructive-foreground: hsl(var(--ds-danger-foreground));
   --ring: hsl(var(--ds-ring));
 
-  --sidebar-background: hsl(0 0% 0%);      /* pure black #000000 */
-  --sidebar-foreground: hsl(0 0% 100%);    /* pure white #ffffff */
+  /* Dark Mode Sidebar */
+  --sidebar-background: 0 0% 0%;                /* #000000 - Pure black sidebar */
+  --sidebar-foreground: 0 0% 100%;              /* #FFFFFF - White text */
   --sidebar-primary: hsl(var(--ds-primary));
-  --sidebar-primary-foreground: hsl(0 0% 100%); /* pure white #ffffff */
-  --sidebar-accent: hsl(0 0% 11%);         /* #1d1d1f for selected/hover */
-  --sidebar-accent-foreground: hsl(0 0% 100%); /* pure white #ffffff */
-  --sidebar-border: hsl(var(--ds-border-subtle));
+  --sidebar-primary-foreground: 0 0% 100%;      /* #FFFFFF - White text */
+  --sidebar-accent: 0 0% 11%;                   /* #1C1C1C - Hover state */
+  --sidebar-accent-foreground: 0 0% 100%;       /* #FFFFFF - White text */
+  --sidebar-border: 0 0% 18%;                   /* #2D2D2D - Dark border */
   --sidebar-ring: hsl(var(--ds-ring));
 
-  /* Button specific colors */
-  --button-background: hsl(0 0% 15%);      /* #262626 */
-  --button-hover: hsl(0 0% 0%);            /* pure black */
-  --button-selected: hsl(0 0% 0%);          /* pure black */
+  /* Dark Mode Button Colors */
+  --button-background: 0 0% 14%;                /* #242424 - Dark grey */
+  --button-hover: 0 0% 18%;                     /* #2D2D2D - Lighter on hover */
+  --button-selected: 0 0% 20%;                  /* #333333 - Selected state */
 }
 
 @layer base {
@@ -364,47 +378,13 @@
     background: var(--button-selected);
   }
 
-  /* Ensure sidebar is pure black in dark mode */
-  .dark .bg-sidebar-background {
-    background-color: #000000 !important;
+  /* Sidebar hover states */
+  .hover\:bg-sidebar-accent:hover {
+    background: hsl(var(--sidebar-accent));
   }
 
-  /* Ensure sidebar hover/selected states use #1d1d1f */
-  .dark .bg-sidebar-accent {
-    background-color: #1d1d1f !important;
-  }
-
-  .dark .hover\:bg-sidebar-accent\/50:hover {
-    background-color: #1d1d1f !important;
-    opacity: 0.5 !important;
-  }
-
-  /* Ensure sidebar text and icons are pure white in dark mode */
-  .dark .text-sidebar-foreground {
-    color: #ffffff !important;
-  }
-
-  .dark .text-sidebar-foreground\/60 {
-    color: #ffffff !important;
-    opacity: 0.6 !important;
-  }
-
-  .dark .text-sidebar-foreground\/80 {
-    color: #ffffff !important;
-    opacity: 0.8 !important;
-  }
-
-  /* Ensure all sidebar icons are white in dark mode */
-  .dark .dark\\:invert {
-    filter: invert(1) !important;
-  }
-
-  .dark .dark\\:brightness-0 {
-    filter: brightness(0) !important;
-  }
-
-  .dark .dark\\:contrast-200 {
-    filter: contrast(2) !important;
+  .bg-sidebar-accent {
+    background: hsl(var(--sidebar-accent));
   }
 
   .scrollbar-hide::-webkit-scrollbar {

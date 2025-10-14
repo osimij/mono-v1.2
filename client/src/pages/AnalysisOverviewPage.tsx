@@ -64,36 +64,30 @@ export function AnalysisOverviewPage() {
   // Analyze dataset structure
   const datasetAnalysis = dataset?.data ? analyzeDataset(dataset.data as any[]) : null;
 
-  // Save dashboard configuration
-  const saveDashboardConfig = async () => {
-    if (!selectedDatasetId) return;
-    
-    try {
-      const config = {
-        id: dashboardConfigId,
-        datasetId: selectedDatasetId,
-        name: "My Dashboard",
-        metrics,
-        charts
-      };
-      
-      const saved = await api.dashboards.saveConfig(config);
-      setDashboardConfigId(saved.id);
-    } catch (error) {
-      console.error("Failed to save dashboard config:", error);
-    }
-  };
-
   // Auto-save when metrics or charts change
   useEffect(() => {
     if (selectedDatasetId && (metrics.length > 0 || charts.length > 0)) {
-      const timeoutId = setTimeout(() => {
-        saveDashboardConfig();
+      const timeoutId = setTimeout(async () => {
+        try {
+          const config = {
+            id: dashboardConfigId,
+            datasetId: selectedDatasetId,
+            name: "My Dashboard",
+            metrics,
+            charts
+          };
+          
+          const saved = await api.dashboards.saveConfig(config);
+          setDashboardConfigId(saved.id);
+          console.log("Dashboard saved successfully:", saved);
+        } catch (error) {
+          console.error("Failed to save dashboard config:", error);
+        }
       }, 1000);
       
       return () => clearTimeout(timeoutId);
     }
-  }, [metrics, charts, selectedDatasetId]);
+  }, [metrics, charts, selectedDatasetId, dashboardConfigId]);
 
   const handleAddMetric = (metric: DashboardMetricCard) => {
     setMetrics([...metrics, metric]);
@@ -207,7 +201,7 @@ export function AnalysisOverviewPage() {
               contentClassName="gap-10"
             >
               {metrics.length > 0 ? (
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+                <div className="grid auto-rows-fr gap-4 justify-start [grid-template-columns:repeat(auto-fit,minmax(220px,max-content))]">
                   {metrics.map((metric) => (
                     <DynamicMetricCard
                       key={metric.id}

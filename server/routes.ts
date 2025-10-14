@@ -12,6 +12,8 @@ import OpenAI from "openai";
 import { generateDataInsights, generateChartRecommendations, generateModelingAdvice } from "./gemini";
 import { DataPreprocessor, type PreprocessingOptions } from "./dataPreprocessor";
 import bcrypt from "bcrypt";
+import { analysisConfigs } from "@shared/schema";
+import { InsertAnalysisConfig } from "@shared/schema";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -672,7 +674,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Dataset not found" });
       }
 
-      res.json(dataset);
+      const limitParam = Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit;
+      let limitedData = dataset.data;
+
+      if (limitParam) {
+        const parsedLimit = Number(limitParam);
+        if (Number.isFinite(parsedLimit) && parsedLimit > 0 && Array.isArray(dataset.data)) {
+          limitedData = dataset.data.slice(0, Math.floor(parsedLimit));
+        }
+      }
+
+      res.json({
+        ...dataset,
+        data: limitedData,
+      });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch dataset" });
     }
@@ -714,6 +729,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Analysis error:", error);
       res.status(500).json({ error: "Failed to analyze dataset" });
+    }
+  });
+
+  // Analysis configuration routes
+  
+  // Get analysis config for a dataset
+  app.get("/api/analysis/:datasetId", requireAuth, async (req: any, res) => {
+    try {
+      const datasetId = parseInt(req.params.datasetId);
+      if (Number.isNaN(datasetId)) {
+        return res.status(400).json({ error: "Invalid dataset id" });
+      }
+
+      const userId = req.user.id;
+      const config = await storage.getAnalysisConfig(userId, datasetId);
+
+      if (!config) {
+        return res.json({ datasetId, userId, charts: [], insights: [] });
+      }
+
+      res.json(config);
+    } catch (error) {
+      console.error("Failed to fetch analysis config:", error);
+      res.status(500).json({ error: "Failed to fetch analysis configuration" });
+    }
+  });
+  
+  // Save analysis config
+  app.post("/api/analysis", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { datasetId, charts = [], insights = [] } = req.body;
+
+      if (!datasetId || Number.isNaN(Number(datasetId))) {
+        return res.status(400).json({ error: "datasetId is required" });
+      }
+
+      const payload: InsertAnalysisConfig = {
+        userId,
+        datasetId: Number(datasetId),
+        charts,
+        insights,
+      };
+
+      const record = await storage.upsertAnalysisConfig(payload);
+      res.json(record);
+    } catch (error) {
+      console.error("Failed to save analysis config:", error);
+      res.status(500).json({ error: "Failed to save analysis configuration" });
     }
   });
 

@@ -4,6 +4,7 @@ import {
   models, 
   chatSessions,
   dashboardConfigs,
+  analysisConfigs,
   type User, 
   type InsertUser,
   type UpsertUser,
@@ -12,13 +13,15 @@ import {
   type Model,
   type InsertModel,
   type ChatSession,
-  type InsertChatSession
+  type InsertChatSession,
+  AnalysisConfigRecord,
+  InsertAnalysisConfig
 } from "@shared/schema";
 
 // Re-export tables for use in routes
-export { users, datasets, models, chatSessions, dashboardConfigs };
+export { users, datasets, models, chatSessions, dashboardConfigs, analysisConfigs };
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import * as fs from 'fs';
 import * as path from 'path';
 import Papa from 'papaparse';
@@ -49,6 +52,11 @@ export interface IStorage {
   createChatSession(session: InsertChatSession): Promise<ChatSession>;
   updateChatSession(id: number, messages: any): Promise<ChatSession>;
   deleteChatSession(id: number): Promise<void>;
+
+  // Analysis config methods
+  getAnalysisConfig(userId: string, datasetId: number): Promise<AnalysisConfigRecord | undefined>;
+  upsertAnalysisConfig(payload: InsertAnalysisConfig): Promise<AnalysisConfigRecord>;
+  deleteAnalysisConfig(id: number): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -56,20 +64,24 @@ export class MemStorage implements IStorage {
   private datasets: Map<number, Dataset>;
   private models: Map<number, Model>;
   private chatSessions: Map<number, ChatSession>;
+  private analysisConfigs: Map<number, AnalysisConfigRecord>;
   private currentUserId: number;
   private currentDatasetId: number;
   private currentModelId: number;
   private currentChatSessionId: number;
+  private currentAnalysisConfigId: number;
 
   constructor() {
     this.users = new Map();
     this.datasets = new Map();
     this.models = new Map();
     this.chatSessions = new Map();
+    this.analysisConfigs = new Map();
     this.currentUserId = 1;
     this.currentDatasetId = 1;
     this.currentModelId = 1;
     this.currentChatSessionId = 1;
+    this.currentAnalysisConfigId = 1;
     
     // Load demo dataset on startup
     this.initializeDemoData();
@@ -144,6 +156,11 @@ export class MemStorage implements IStorage {
 
   async deleteDataset(id: number): Promise<void> {
     this.datasets.delete(id);
+    this.analysisConfigs.forEach((config, key) => {
+      if (config.datasetId === id) {
+        this.analysisConfigs.delete(key);
+      }
+    });
   }
 
   async getModels(userId: string): Promise<Model[]> {
@@ -211,6 +228,38 @@ export class MemStorage implements IStorage {
 
   async deleteChatSession(id: number): Promise<void> {
     this.chatSessions.delete(id);
+  }
+
+  async getAnalysisConfig(userId: string, datasetId: number): Promise<AnalysisConfigRecord | undefined> {
+    return Array.from(this.analysisConfigs.values()).find(
+      (config) => config.userId === userId && config.datasetId === datasetId
+    );
+  }
+
+  async upsertAnalysisConfig(payload: InsertAnalysisConfig): Promise<AnalysisConfigRecord> {
+    const existing = await this.getAnalysisConfig(payload.userId, payload.datasetId);
+    if (existing) {
+      const updated = { ...existing, ...payload, updatedAt: new Date() };
+      this.analysisConfigs.set(existing.id!, updated as AnalysisConfigRecord);
+      return updated as AnalysisConfigRecord;
+    }
+
+    const id = this.currentAnalysisConfigId++;
+    const created: AnalysisConfigRecord = {
+      id,
+      userId: payload.userId,
+      datasetId: payload.datasetId,
+      charts: payload.charts,
+      insights: payload.insights,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.analysisConfigs.set(id, created);
+    return created;
+  }
+
+  async deleteAnalysisConfig(id: number): Promise<void> {
+    this.analysisConfigs.delete(id);
   }
 
   private initializeDemoData(): void {
@@ -384,6 +433,7 @@ class DatabaseStorage implements IStorage {
   async deleteDataset(id: number): Promise<void> {
     // First delete all models that reference this dataset to avoid foreign key constraint violations
     await db.delete(models).where(eq(models.datasetId, id));
+    await db.delete(analysisConfigs).where(eq(analysisConfigs.datasetId, id));
     
     // Then delete the dataset itself
     await db.delete(datasets).where(eq(datasets.id, id));
@@ -443,6 +493,39 @@ class DatabaseStorage implements IStorage {
 
   async deleteChatSession(id: number): Promise<void> {
     await db.delete(chatSessions).where(eq(chatSessions.id, id));
+  }
+
+  async getAnalysisConfig(userId: string, datasetId: number): Promise<AnalysisConfigRecord | undefined> {
+    const [record] = await db
+      .select()
+      .from(analysisConfigs)
+      .where(
+        and(
+          eq(analysisConfigs.userId, userId),
+          eq(analysisConfigs.datasetId, datasetId)
+        )
+      );
+    return record;
+  }
+
+  async upsertAnalysisConfig(payload: InsertAnalysisConfig): Promise<AnalysisConfigRecord> {
+    const [record] = await db
+      .insert(analysisConfigs)
+      .values(payload)
+      .onConflictDoUpdate({
+        target: [analysisConfigs.userId, analysisConfigs.datasetId],
+        set: {
+          charts: payload.charts,
+          insights: payload.insights,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return record;
+  }
+
+  async deleteAnalysisConfig(id: number): Promise<void> {
+    await db.delete(analysisConfigs).where(eq(analysisConfigs.id, id));
   }
 
   private async initializeDemoData(): Promise<void> {

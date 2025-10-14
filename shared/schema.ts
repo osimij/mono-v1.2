@@ -60,6 +60,16 @@ export const chatSessions = pgTable("chat_sessions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const analysisConfigs = pgTable("analysis_configs", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  datasetId: integer("dataset_id").references(() => datasets.id).notNull(),
+  charts: jsonb("charts").notNull().default([]),
+  insights: jsonb("insights").notNull().default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   id: true,
   email: true,
@@ -92,6 +102,12 @@ export const insertChatSessionSchema = createInsertSchema(chatSessions).omit({
   createdAt: true,
 });
 
+export const insertAnalysisConfigSchema = createInsertSchema(analysisConfigs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
@@ -104,6 +120,9 @@ export type InsertModel = z.infer<typeof insertModelSchema>;
 
 export type ChatSession = typeof chatSessions.$inferSelect;
 export type InsertChatSession = z.infer<typeof insertChatSessionSchema>;
+
+export type AnalysisConfigRecord = typeof analysisConfigs.$inferSelect;
+export type InsertAnalysisConfig = z.infer<typeof insertAnalysisConfigSchema>;
 
 // Chat message types
 export interface ChatMessage {

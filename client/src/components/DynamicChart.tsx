@@ -1,4 +1,4 @@
-import { CSSProperties, ReactNode, useCallback, useId, useMemo } from "react";
+import { CSSProperties, ReactNode, useCallback, useId, useMemo, useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -51,30 +51,73 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 
+// Neon gradients inspired by Apple design
+const NEON_GRADIENTS = {
+  blueRise: { start: "#4AD1FF", end: "#248BFF", solid: "#4AD1FF" },
+  purplePlume: { start: "#B064FF", end: "#6C2FFF", solid: "#9E77FF" },
+  tealMint: { start: "#27E0B3", end: "#79FFDA", solid: "#2ED3A0" },
+  magentaBar: { start: "#FF4FA2", end: "#FF7AC1", solid: "#FF6B9A" },
+  amberHeat: { start: "#FFC24D", end: "#FF8A00", solid: "#FFB545" },
+  indigoLoop: { start: "#5A66FF", end: "#9E77FF", solid: "#5CC8FF" },
+  emeraldGlow: { start: "#52FF8F", end: "#27E0B3", solid: "#2ED3A0" },
+  crimsonPulse: { start: "#FF6B9A", end: "#FF4FA2", solid: "#FF6B9A" }
+} as const;
+
 const CHART_COLORS = [
-  "hsl(211, 100%, 50%)", // primary blue
-  "hsl(142, 76%, 36%)", // emerald
-  "hsl(262, 83%, 58%)", // purple
-  "hsl(339, 82%, 57%)", // pink
-  "hsl(188, 94%, 43%)", // cyan
-  "hsl(25, 95%, 53%)", // orange
-  "hsl(199, 89%, 48%)", // sky
-  "hsl(0, 84%, 60%)" // red
+  "#4AD1FF", // blueRise
+  "#2ED3A0", // tealMint
+  "#9E77FF", // purplePlume
+  "#FF6B9A", // magentaBar
+  "#FFB545", // amberHeat
+  "#5CC8FF", // indigoLoop
+  "#52FF8F", // emeraldGlow
+  "#FF4FA2"  // crimsonPulse
 ] as const;
 
-const GRID_STROKE = "rgba(148, 163, 184, 0.35)";
-const CURSOR_FILL = "rgba(148, 163, 184, 0.12)";
-const LABEL_FILL = "#e6e9ea";
+const GRADIENT_KEYS = Object.keys(NEON_GRADIENTS) as (keyof typeof NEON_GRADIENTS)[];
 
-const TOOLTIP_STYLE: CSSProperties = {
-  backgroundColor: "rgba(255, 255, 255, 0.97)",
-  border: "1px solid rgba(226, 232, 240, 0.7)",
-  borderRadius: 12,
-  boxShadow: "0 18px 32px -16px rgba(15, 23, 42, 0.45)",
-  color: "rgb(15, 23, 42)",
-  fontSize: 12,
-  padding: "8px 12px"
-};
+// Hook to get theme-aware chart colors
+function useChartTheme() {
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return document.documentElement.classList.contains("dark");
+  });
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains("dark"));
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  return {
+    gridStroke: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)",
+    cursorFill: isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)",
+    labelFill: isDark ? "rgba(255, 255, 255, 0.85)" : "rgba(0, 0, 0, 0.85)",
+    tooltipStyle: {
+      backgroundColor: isDark ? "#1A1A1A" : "#FFFFFF",
+      border: isDark ? "1px solid rgba(255, 255, 255, 0.12)" : "1px solid rgba(0, 0, 0, 0.12)",
+      borderRadius: 12,
+      color: isDark ? "#ffffff" : "#1A1A1A",
+      fontSize: 12,
+      padding: "10px 14px",
+      boxShadow: isDark ? "0 4px 12px rgba(0, 0, 0, 0.3)" : "0 4px 12px rgba(0, 0, 0, 0.1)"
+    } as CSSProperties,
+    tooltipLabelStyle: {
+      color: isDark ? "#ffffff" : "#1A1A1A",
+      fontWeight: 600
+    } as CSSProperties,
+    tooltipItemStyle: {
+      color: isDark ? "#E6E6E6" : "#4D4D4D"
+    } as CSSProperties,
+  };
+}
 
 const CHART_TYPE_META: Record<
   DashboardChart["chartType"],
@@ -106,6 +149,11 @@ interface SeriesMeta {
   yAxisId: "left" | "right";
 }
 
+type ScatterAxisMeta = {
+  xLabelMap: Map<number, string>;
+  isTemporalAxis: boolean;
+} | null;
+
 interface ChartSelectOption {
   value: string;
   label: string;
@@ -123,6 +171,67 @@ function humanizeColumnName(name: string) {
     .replace(/\b\w/g, char => char.toUpperCase());
 }
 
+interface NormalizedAxisValue {
+  numericValue: number;
+  label?: string;
+  isTemporal: boolean;
+}
+
+const formatTemporalLabel = (timestamp: number, fallback?: string): string => {
+  if (!Number.isFinite(timestamp)) {
+    return fallback ?? "";
+  }
+  try {
+    return new Date(timestamp).toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric"
+    });
+  } catch (error) {
+    console.warn("Failed to format temporal label", error);
+    return fallback ?? String(timestamp);
+  }
+};
+
+const normalizeScatterAxisValue = (value: unknown): NormalizedAxisValue => {
+  if (value == null || value === "") {
+    return { numericValue: Number.NaN, isTemporal: false };
+  }
+
+  if (value instanceof Date) {
+    const timestamp = value.getTime();
+    return {
+      numericValue: timestamp,
+      label: formatTemporalLabel(timestamp),
+      isTemporal: true
+    };
+  }
+
+  if (typeof value === "number") {
+    if (Number.isFinite(value)) {
+      return { numericValue: value, label: String(value), isTemporal: false };
+    }
+    return { numericValue: Number.NaN, isTemporal: false };
+  }
+
+  const stringValue = String(value);
+  const numeric = Number(stringValue);
+  if (Number.isFinite(numeric)) {
+    return { numericValue: numeric, label: stringValue, isTemporal: false };
+  }
+
+  const parsedDate = Date.parse(stringValue);
+  if (!Number.isNaN(parsedDate)) {
+    return {
+      numericValue: parsedDate,
+      label: formatTemporalLabel(parsedDate, stringValue),
+      isTemporal: true
+    };
+  }
+
+  return { numericValue: Number.NaN, isTemporal: false };
+};
+
 export function DynamicChart({
   chart,
   data,
@@ -131,6 +240,7 @@ export function DynamicChart({
   onEdit,
   onDelete
 }: DynamicChartProps) {
+  const chartTheme = useChartTheme();
   const yAxisColumns = Array.isArray(chart.yAxis) ? chart.yAxis : [chart.yAxis];
   const isSingleColumn = yAxisColumns.length === 1;
 
@@ -155,9 +265,60 @@ export function DynamicChart({
     chart.size === "large" ? 360 :
     chart.size === "small" ? 220 : 300;
 
-  const chartData = isSingleColumn
-    ? prepareChartData(filteredData, chart.xAxis, yAxisColumns[0], chart.aggregation, chart.groupBy)
-    : prepareMultiColumnChartData(filteredData, chart.xAxis, yAxisColumns, chart.aggregation);
+  const { chartData, scatterAxisMeta } = useMemo(() => {
+    const prepared = isSingleColumn
+      ? prepareChartData(filteredData, chart.xAxis, yAxisColumns[0], chart.aggregation, chart.groupBy)
+      : prepareMultiColumnChartData(filteredData, chart.xAxis, yAxisColumns, chart.aggregation);
+
+    if (chart.chartType !== "scatter") {
+      return { chartData: prepared, scatterAxisMeta: null };
+    }
+
+    const nextData: Record<string, unknown>[] = [];
+    const xLabelMap = new Map<number, string>();
+    let usesTemporalAxis = false;
+
+    prepared.forEach((row) => {
+      const rawXValue = (row as Record<string, unknown>)[chart.xAxis];
+      const { numericValue, label, isTemporal } = normalizeScatterAxisValue(rawXValue);
+      if (!Number.isFinite(numericValue)) {
+        return;
+      }
+
+      const nextRow: Record<string, unknown> = {
+        ...row,
+        [chart.xAxis]: numericValue
+      };
+
+      let hasInvalidMetric = false;
+      yAxisColumns.forEach((metric) => {
+        const numericValue = Number((row as Record<string, unknown>)[metric]);
+        if (!Number.isFinite(numericValue)) {
+          hasInvalidMetric = true;
+          return;
+        }
+        nextRow[metric] = numericValue;
+      });
+
+      if (!hasInvalidMetric) {
+        if (label !== undefined) {
+          xLabelMap.set(numericValue, label);
+        }
+        if (isTemporal) {
+          usesTemporalAxis = true;
+        }
+        nextData.push(nextRow);
+      }
+    });
+
+    return {
+      chartData: nextData,
+      scatterAxisMeta: {
+        xLabelMap,
+        isTemporalAxis: usesTemporalAxis
+      }
+    };
+  }, [chart.aggregation, chart.chartType, chart.groupBy, chart.xAxis, filteredData, isSingleColumn, yAxisColumns]);
 
   const generatedId = useId();
   const chartUid = useMemo(() => {
@@ -182,27 +343,38 @@ export function DynamicChart({
   }, [datasetAnalysis?.numericColumns, yAxisColumns]);
 
   const seriesMeta = useMemo<SeriesMeta[]>(() => {
-    return yAxisColumns.map((column, index) => ({
-      key: column,
-      color: CHART_COLORS[index % CHART_COLORS.length],
-      gradientId: `${chartUid}-gradient-${index}`,
-      yAxisId: useDualAxes && index === 1 ? "right" : "left"
-    }));
+    return yAxisColumns.map((column, index) => {
+      const gradientKey = GRADIENT_KEYS[index % GRADIENT_KEYS.length];
+      const gradient = NEON_GRADIENTS[gradientKey];
+      return {
+        key: column,
+        color: gradient.solid,
+        gradientId: `${chartUid}-gradient-${index}`,
+        yAxisId: useDualAxes && index === 1 ? "right" : "left"
+      };
+    });
   }, [yAxisColumns, chartUid, useDualAxes]);
 
   const chartContainerClasses = cn(
     "relative flex h-full max-h-[300px] w-full select-none justify-center",
     "aspect-video min-h-[0] text-xs",
     "[&_.recharts-surface]:outline-none [&_.recharts-layer]:outline-none",
-    "[&_.recharts-cartesian-grid_line]:stroke-[rgba(148,163,184,0.35)]",
-    "[&_.recharts-polar-grid_[stroke='#ccc']]:stroke-[rgba(148,163,184,0.35)]",
-    "[&_.recharts-radial-bar-background-sector]:fill-[rgba(226,232,240,0.35)]",
-    "[&_.recharts-tooltip-cursor]:fill-[rgba(148,163,184,0.12)]",
-    "[&_.recharts-rectangle.recharts-tooltip-cursor]:fill-[rgba(148,163,184,0.12)]",
-    "[&_.recharts-bar-rectangle]:transition-opacity [&_.recharts-bar-rectangle:hover]:opacity-90",
+    // Subtle grid and background styling
+    "[&_.recharts-cartesian-grid_line]:stroke-[rgba(255,255,255,0.08)]",
+    "[&_.recharts-polar-grid_[stroke='#ccc']]:stroke-[rgba(255,255,255,0.08)]",
+    "[&_.recharts-radial-bar-background-sector]:fill-[rgba(255,255,255,0.03)]",
+    // Tooltip cursor
+    "[&_.recharts-tooltip-cursor]:fill-[rgba(255,255,255,0.05)]",
+    "[&_.recharts-rectangle.recharts-tooltip-cursor]:fill-[rgba(255,255,255,0.05)]",
+    // Bar interactions
+    "[&_.recharts-bar-rectangle]:transition-all [&_.recharts-bar-rectangle]:duration-200",
+    "[&_.recharts-bar-rectangle:hover]:opacity-90",
+    // Clean strokes
     "[&_.recharts-sector[stroke='#fff']]:stroke-transparent",
     "[&_.recharts-dot[stroke='#fff']]:stroke-transparent",
-    "[&_.recharts-legend-wrapper]:hidden"
+    "[&_.recharts-legend-wrapper]:hidden",
+    // Pie chart labels
+    "[&_.recharts-pie-label-text]:fill-white/90 [&_.recharts-pie-label-text]:text-xs [&_.recharts-pie-label-text]:font-medium"
   );
 
   const chartTypeDisplay = CHART_TYPE_META[chart.chartType];
@@ -394,30 +566,35 @@ export function DynamicChart({
       case "line":
         return (
           <ReLineChart {...commonProps}>
-            <CartesianGrid strokeDasharray="0" stroke={GRID_STROKE} vertical={false} />
+            <CartesianGrid strokeDasharray="0" stroke={chartTheme.gridStroke} vertical={false} />
             <XAxis
               dataKey={chart.xAxis}
-              tick={{ fill: LABEL_FILL, fontSize: 11 }}
+              tick={{ fill: chartTheme.labelFill, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               tickMargin={12}
             />
             <YAxis
-              tick={{ fill: seriesMeta[0]?.color ?? LABEL_FILL, fontSize: 11 }}
+              tick={{ fill: chartTheme.labelFill, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               tickMargin={12}
             />
-            <Tooltip cursor={{ stroke: GRID_STROKE }} contentStyle={TOOLTIP_STYLE} />
+            <Tooltip 
+              cursor={{ stroke: chartTheme.gridStroke }} 
+              contentStyle={chartTheme.tooltipStyle}
+              labelStyle={chartTheme.tooltipLabelStyle}
+              itemStyle={chartTheme.tooltipItemStyle}
+            />
             {seriesMeta.map(series => (
               <Line
                 key={series.key}
                 type="monotone"
                 dataKey={series.key}
                 stroke={series.color}
-                strokeWidth={3}
-                dot={false}
-                activeDot={{ r: 5, strokeWidth: 0 }}
+                strokeWidth={2.5}
+                dot={{ r: 4, fill: series.color, strokeWidth: 0 }}
+                activeDot={{ r: 6, strokeWidth: 0, fill: series.color }}
               />
             ))}
           </ReLineChart>
@@ -427,37 +604,46 @@ export function DynamicChart({
         return (
           <ReAreaChart {...commonProps}>
             <defs>
-              {seriesMeta.map(series => (
-                <linearGradient key={series.gradientId} id={series.gradientId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={series.color} stopOpacity={0.75} />
-                  <stop offset="95%" stopColor={series.color} stopOpacity={0.05} />
-                </linearGradient>
-              ))}
+              {seriesMeta.map((series, index) => {
+                const gradientKey = GRADIENT_KEYS[index % GRADIENT_KEYS.length];
+                const gradient = NEON_GRADIENTS[gradientKey];
+                return (
+                  <linearGradient key={series.gradientId} id={series.gradientId} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={gradient.start} stopOpacity={0.85} />
+                    <stop offset="95%" stopColor={gradient.end} stopOpacity={0.1} />
+                  </linearGradient>
+                );
+              })}
             </defs>
-            <CartesianGrid strokeDasharray="0" stroke={GRID_STROKE} vertical={false} />
+            <CartesianGrid strokeDasharray="0" stroke={chartTheme.gridStroke} vertical={false} />
             <XAxis
               dataKey={chart.xAxis}
-              tick={{ fill: LABEL_FILL, fontSize: 11 }}
+              tick={{ fill: chartTheme.labelFill, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               tickMargin={12}
             />
             <YAxis
-              tick={{ fill: seriesMeta[0]?.color ?? LABEL_FILL, fontSize: 11 }}
+              tick={{ fill: chartTheme.labelFill, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               tickMargin={12}
             />
-            <Tooltip cursor={{ fill: CURSOR_FILL }} contentStyle={TOOLTIP_STYLE} />
+            <Tooltip 
+              cursor={{ fill: chartTheme.cursorFill }} 
+              contentStyle={chartTheme.tooltipStyle}
+              labelStyle={chartTheme.tooltipLabelStyle}
+              itemStyle={chartTheme.tooltipItemStyle}
+            />
             {seriesMeta.map(series => (
               <Area
                 key={series.key}
                 type="monotone"
                 dataKey={series.key}
                 stroke={series.color}
-                strokeWidth={3}
+                strokeWidth={2.5}
                 fill={`url(#${series.gradientId})`}
-                fillOpacity={0.85}
+                fillOpacity={1}
               />
             ))}
           </ReAreaChart>
@@ -472,47 +658,85 @@ export function DynamicChart({
               nameKey={chart.xAxis}
               cx="50%"
               cy="50%"
-              innerRadius={50}
-              outerRadius={80}
+              innerRadius={54}
+              outerRadius={88}
               label={({ name }) => name}
               strokeWidth={0}
-              paddingAngle={4}
+              paddingAngle={3}
             >
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-              ))}
+              {chartData.map((entry, index) => {
+                const colorIndex = index % CHART_COLORS.length;
+                return (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={CHART_COLORS[colorIndex]}
+                  />
+                );
+              })}
             </Pie>
-            <Tooltip contentStyle={TOOLTIP_STYLE} />
+            <Tooltip 
+              contentStyle={chartTheme.tooltipStyle}
+              labelStyle={chartTheme.tooltipLabelStyle}
+              itemStyle={chartTheme.tooltipItemStyle}
+            />
           </RePieChart>
         );
 
       case "scatter":
         return (
           <ReScatterChart {...commonProps}>
-            <CartesianGrid strokeDasharray="0" stroke={GRID_STROKE} />
+            <CartesianGrid strokeDasharray="0" stroke={chartTheme.gridStroke} />
             <XAxis
               dataKey={chart.xAxis}
               type="number"
-              tick={{ fill: LABEL_FILL, fontSize: 11 }}
+              tick={{ fill: chartTheme.labelFill, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               tickMargin={12}
+              tickFormatter={(value: number) => {
+                if (!Number.isFinite(value)) return "";
+                if (scatterAxisMeta?.xLabelMap?.has(value)) {
+                  return scatterAxisMeta.xLabelMap.get(value) ?? "";
+                }
+                if (scatterAxisMeta?.isTemporalAxis) {
+                  return formatTemporalLabel(value);
+                }
+                return String(value);
+              }}
             />
             <YAxis
               type="number"
-              tick={{ fill: seriesMeta[0]?.color ?? LABEL_FILL, fontSize: 11 }}
+              tick={{ fill: chartTheme.labelFill, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               tickMargin={12}
             />
-            <Tooltip cursor={{ stroke: GRID_STROKE }} contentStyle={TOOLTIP_STYLE} />
+            <Tooltip 
+              cursor={{ stroke: chartTheme.gridStroke }} 
+              contentStyle={chartTheme.tooltipStyle}
+              labelStyle={chartTheme.tooltipLabelStyle}
+              itemStyle={chartTheme.tooltipItemStyle}
+              labelFormatter={(value) => {
+                const numericValue = typeof value === "number" ? value : Number(value);
+                if (!Number.isFinite(numericValue)) {
+                  return String(value ?? "");
+                }
+                if (scatterAxisMeta?.xLabelMap?.has(numericValue)) {
+                  return scatterAxisMeta.xLabelMap.get(numericValue) ?? "";
+                }
+                if (scatterAxisMeta?.isTemporalAxis) {
+                  return formatTemporalLabel(numericValue);
+                }
+                return String(value ?? "");
+              }}
+            />
             {seriesMeta.map(series => (
               <Scatter
                 key={series.key}
                 name={series.key}
+                dataKey={series.key}
                 data={chartData}
                 fill={series.color}
-                line={{ stroke: series.color }}
               />
             ))}
           </ReScatterChart>
@@ -522,17 +746,21 @@ export function DynamicChart({
         return (
           <ReBarChart {...commonProps} layout="vertical" barGap={12} barCategoryGap={24}>
             <defs>
-              {seriesMeta.map(series => (
-                <linearGradient key={series.gradientId} id={series.gradientId} x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="5%" stopColor={series.color} stopOpacity={0.85} />
-                  <stop offset="95%" stopColor={series.color} stopOpacity={0.15} />
-                </linearGradient>
-              ))}
+              {seriesMeta.map((series, index) => {
+                const gradientKey = GRADIENT_KEYS[index % GRADIENT_KEYS.length];
+                const gradient = NEON_GRADIENTS[gradientKey];
+                return (
+                  <linearGradient key={series.gradientId} id={series.gradientId} x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="5%" stopColor={gradient.start} stopOpacity={0.95} />
+                    <stop offset="95%" stopColor={gradient.end} stopOpacity={0.6} />
+                  </linearGradient>
+                );
+              })}
             </defs>
-            <CartesianGrid strokeDasharray="0" stroke={GRID_STROKE} horizontal={false} />
+            <CartesianGrid strokeDasharray="0" stroke={chartTheme.gridStroke} horizontal={false} />
             <XAxis
               type="number"
-              tick={{ fill: LABEL_FILL, fontSize: 11 }}
+              tick={{ fill: chartTheme.labelFill, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               tickMargin={12}
@@ -540,19 +768,23 @@ export function DynamicChart({
             <YAxis
               dataKey={chart.xAxis}
               type="category"
-              tick={{ fill: LABEL_FILL, fontSize: 11 }}
+              tick={{ fill: chartTheme.labelFill, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               width={120}
             />
-            <Tooltip cursor={{ fill: CURSOR_FILL }} contentStyle={TOOLTIP_STYLE} />
+            <Tooltip 
+              cursor={{ fill: chartTheme.cursorFill }} 
+              contentStyle={chartTheme.tooltipStyle}
+              labelStyle={chartTheme.tooltipLabelStyle}
+              itemStyle={chartTheme.tooltipItemStyle}
+            />
             {seriesMeta.map(series => (
               <Bar
                 key={series.key}
                 dataKey={series.key}
                 fill={`url(#${series.gradientId})`}
-                stroke={series.color}
-                strokeWidth={1}
+                strokeWidth={0}
                 radius={[0, 8, 8, 0]}
               />
             ))}
@@ -564,24 +796,28 @@ export function DynamicChart({
         return (
           <ReBarChart {...commonProps} barGap={12} barCategoryGap={18}>
             <defs>
-              {seriesMeta.map(series => (
-                <linearGradient key={series.gradientId} id={series.gradientId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={series.color} stopOpacity={0.85} />
-                  <stop offset="95%" stopColor={series.color} stopOpacity={0.1} />
-                </linearGradient>
-              ))}
+              {seriesMeta.map((series, index) => {
+                const gradientKey = GRADIENT_KEYS[index % GRADIENT_KEYS.length];
+                const gradient = NEON_GRADIENTS[gradientKey];
+                return (
+                  <linearGradient key={series.gradientId} id={series.gradientId} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={gradient.start} stopOpacity={0.95} />
+                    <stop offset="95%" stopColor={gradient.end} stopOpacity={0.6} />
+                  </linearGradient>
+                );
+              })}
             </defs>
-            <CartesianGrid strokeDasharray="0" stroke={GRID_STROKE} vertical={false} />
+            <CartesianGrid strokeDasharray="0" stroke={chartTheme.gridStroke} vertical={false} />
             <XAxis
               dataKey={chart.xAxis}
-              tick={{ fill: LABEL_FILL, fontSize: 11 }}
+              tick={{ fill: chartTheme.labelFill, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               tickMargin={12}
             />
             <YAxis
               yAxisId="left"
-              tick={{ fill: seriesMeta[0]?.color ?? LABEL_FILL, fontSize: 11 }}
+              tick={{ fill: chartTheme.labelFill, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               tickMargin={12}
@@ -590,22 +826,26 @@ export function DynamicChart({
               <YAxis
                 yAxisId="right"
                 orientation="right"
-                tick={{ fill: seriesMeta[1]?.color ?? LABEL_FILL, fontSize: 11 }}
+                tick={{ fill: chartTheme.labelFill, fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
                 tickMargin={12}
               />
             ) : null}
-            <Tooltip cursor={{ fill: CURSOR_FILL }} contentStyle={TOOLTIP_STYLE} />
+            <Tooltip 
+              cursor={{ fill: chartTheme.cursorFill }} 
+              contentStyle={chartTheme.tooltipStyle}
+              labelStyle={chartTheme.tooltipLabelStyle}
+              itemStyle={chartTheme.tooltipItemStyle}
+            />
             {seriesMeta.map(series => (
               <Bar
                 key={series.key}
                 yAxisId={series.yAxisId}
                 dataKey={series.key}
                 fill={`url(#${series.gradientId})`}
-                stroke={series.color}
-                strokeWidth={1}
-                radius={[8, 8, 8, 8]}
+                strokeWidth={0}
+                radius={[8, 8, 0, 0]}
                 maxBarSize={48}
               />
             ))}
@@ -617,8 +857,9 @@ export function DynamicChart({
   return (
     <Card
       className={cn(
-        "relative flex flex-col overflow-hidden rounded-2xl border border-border bg-white/95 text-slate-900 shadow-[0_12px_40px_-24px_rgba(15,23,42,0.45)] transition-colors",
-        "dark:bg-[#171717] dark:text-slate-100 dark:shadow-[0_12px_40px_-20px_rgba(8,15,30,0.8)]"
+        "relative flex flex-col overflow-hidden rounded-2xl transition-colors",
+        "bg-surface-muted border border-border",
+        "text-foreground"
       )}
       role="group"
       aria-labelledby={chartTitleId}
@@ -626,12 +867,12 @@ export function DynamicChart({
     >
       <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-border pb-3">
         <div className="space-y-1">
-          <CardTitle id={chartTitleId} className="text-base font-semibold leading-tight">
+          <CardTitle id={chartTitleId} className="text-base font-semibold leading-tight text-foreground">
             {chart.title}
           </CardTitle>
           {hasManualDescription ? (
             <>
-              <CardDescription id={chartDescriptionId} className="text-xs leading-relaxed">
+              <CardDescription id={chartDescriptionId} className="text-xs leading-relaxed text-text-muted">
                 {chart.description}
               </CardDescription>
               <p id={chartGeneratedDescriptionId} className="sr-only">
@@ -639,16 +880,16 @@ export function DynamicChart({
               </p>
             </>
           ) : (
-            <CardDescription id={chartDescriptionId} className="text-xs leading-relaxed">
+            <CardDescription id={chartDescriptionId} className="text-xs leading-relaxed text-text-muted">
               {generatedDescription}
             </CardDescription>
           )}
         </div>
-        <div className="flex shrink-0 gap-1 text-slate-500">
+        <div className="flex shrink-0 gap-1 text-text-subtle">
           <Button
             size="icon"
             variant="ghost"
-            className="h-8 w-8 hover:text-slate-900 dark:hover:text-slate-100"
+            className="h-8 w-8 hover:bg-surface-muted hover:text-foreground transition-colors"
             onClick={onEdit}
             aria-label="Edit chart"
           >
@@ -657,7 +898,7 @@ export function DynamicChart({
           <Button
             size="icon"
             variant="ghost"
-            className="h-8 w-8 text-red-500 hover:text-red-400"
+            className="h-8 w-8 text-red-400/80 hover:bg-red-500/20 hover:text-red-400 transition-colors"
             onClick={onDelete}
             aria-label="Delete chart"
           >
@@ -666,7 +907,7 @@ export function DynamicChart({
         </div>
       </CardHeader>
 
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-slate-50/70 px-4 py-3 dark:bg-[#171717]">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-surface-muted px-4 py-3">
         <div className="flex flex-wrap items-center gap-2 md:gap-3">
           {seriesMeta.map((series, index) => {
             const optionsForSeries: ChartSelectOption[] = [
@@ -699,7 +940,7 @@ export function DynamicChart({
             <button
               type="button"
               onClick={handleAddSeries}
-              className="flex h-10 items-center gap-2 rounded-lg border border-dashed border-border bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-border/80 hover:text-slate-800 dark:bg-[#171717] dark:text-slate-300 dark:hover:text-slate-200"
+              className="flex h-10 items-center gap-2 rounded-lg border border-dashed border-border bg-surface-subtle px-3 text-xs font-semibold text-text-muted transition hover:border-border-strong hover:bg-surface-elevated hover:text-foreground"
             >
               <Plus className="h-3.5 w-3.5" />
               Add metric
@@ -804,23 +1045,31 @@ function ChartControlSelect({
         <button
           type="button"
           className={cn(
-            "relative flex h-10 min-w-[160px] items-center justify-between gap-2 rounded-lg border border-border bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-border/80 hover:text-slate-900 dark:bg-[#171717] dark:text-slate-200 dark:hover:text-slate-100"
+            "relative flex h-10 min-w-[160px] items-center justify-between gap-2 rounded-lg transition-all",
+            "bg-white/[0.06] border border-white/10",
+            "text-xs font-semibold text-foreground",
+            "hover:bg-surface-elevated hover:border-border-strong"
           )}
         >
           {accentColor ? (
             <span
-              className="absolute inset-y-0 left-0 w-1.5 rounded-l-lg"
-              style={{ backgroundColor: accentColor }}
+              className="absolute inset-y-0 left-0 w-1 rounded-l-lg"
+              style={{ 
+                backgroundColor: accentColor
+              }}
             />
           ) : null}
-          <span className={cn("flex flex-1 items-center gap-2 truncate", accentColor ? "pl-2" : "")}>
+          <span className={cn("flex flex-1 items-center gap-2 truncate px-3", accentColor ? "pl-4" : "")}>
             {icon}
             <span className="truncate">{displayLabel}</span>
           </span>
-          <ChevronDown className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" aria-hidden="true" />
+          <ChevronDown className="h-3.5 w-3.5 text-text-subtle mr-2" aria-hidden="true" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56 space-y-1 p-1" align={align}>
+      <DropdownMenuContent 
+        className="w-56 space-y-1 p-1.5 bg-surface-elevated border-border" 
+        align={align}
+      >
         {options.map(option => (
           <DropdownMenuItem
             key={option.value}
@@ -830,16 +1079,20 @@ function ChartControlSelect({
               handleSelect(option);
             }}
             className={cn(
-              "flex flex-col items-start gap-1 rounded-md px-2 py-2 text-sm",
-              option.value === value ? "bg-slate-100 dark:bg-slate-800" : ""
+              "flex flex-col items-start gap-1 rounded-md px-2.5 py-2 text-sm cursor-pointer",
+              "transition-colors text-foreground",
+              option.value === value 
+                ? "bg-white/10" 
+                : "hover:bg-surface-elevated",
+              option.disabled && "opacity-50 cursor-not-allowed"
             )}
           >
             <div className="flex w-full items-center justify-between gap-2">
               <span className="truncate">{option.label}</span>
-              {option.value === value ? <Check className="h-3.5 w-3.5 text-primary" /> : null}
+              {option.value === value ? <Check className="h-3.5 w-3.5 text-[#4AD1FF]" /> : null}
             </div>
             {option.description ? (
-              <span className="w-full truncate text-xs text-slate-500 dark:text-slate-400">
+              <span className="w-full truncate text-xs text-text-muted">
                 {option.description}
               </span>
             ) : null}
@@ -864,19 +1117,25 @@ function ChartFilterControl({ label, icon, hasFilter, onEdit, onClear }: ChartFi
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex h-10 min-w-[150px] items-center justify-between gap-2 rounded-lg border border-border bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-border/80 hover:text-slate-900 dark:bg-[#171717] dark:text-slate-200 dark:hover:text-slate-100"
+          className={cn(
+            "flex h-10 min-w-[150px] items-center justify-between gap-2 rounded-lg transition-all",
+            "bg-surface-subtle border px-3 text-xs font-semibold",
+            hasFilter 
+              ? "border-warning/40 text-warning hover:bg-warning/10 hover:border-warning/60"
+              : "border-border text-text-muted hover:bg-surface-elevated hover:border-border-strong"
+          )}
         >
           <span className="flex flex-1 items-center gap-2 truncate">
             {icon}
             <span className="truncate">{label}</span>
           </span>
-          <ChevronDown className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" aria-hidden="true" />
+          <ChevronDown className="h-3.5 w-3.5 text-text-subtle" aria-hidden="true" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48 p-1">
+      <DropdownMenuContent align="end" className="w-48 p-1.5 bg-surface-elevated border-border">
         <DropdownMenuItem
           disabled
-          className="cursor-default text-xs text-slate-500 dark:text-slate-400"
+          className="cursor-default text-xs text-text-subtle hover:bg-transparent"
         >
           {hasFilter ? label : "No filter applied"}
         </DropdownMenuItem>
@@ -885,7 +1144,7 @@ function ChartFilterControl({ label, icon, hasFilter, onEdit, onClear }: ChartFi
             event.preventDefault();
             onEdit();
           }}
-          className="text-sm font-medium"
+          className="text-sm font-medium text-foreground hover:bg-surface-elevated cursor-pointer"
         >
           Edit filter…
         </DropdownMenuItem>
@@ -895,7 +1154,7 @@ function ChartFilterControl({ label, icon, hasFilter, onEdit, onClear }: ChartFi
             event.preventDefault();
             onClear();
           }}
-          className="text-sm"
+          className="text-sm text-foreground hover:bg-surface-elevated cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Clear filter
         </DropdownMenuItem>

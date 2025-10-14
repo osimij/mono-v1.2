@@ -15,6 +15,7 @@ interface AnalyticsTabNavigationProps {
 }
 
 const ANALYTICS_TABS: Tab[] = [
+  { id: "custom", label: "Custom Analysis", path: "/analysis" },
   { id: "overview", label: "Overview Dashboard", path: "/analysis/overview" },
   { id: "trends", label: "Trend Analysis", path: "/analysis/trends" },
   { id: "correlation", label: "Correlation Analysis", path: "/analysis/correlation" },

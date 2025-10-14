@@ -138,7 +138,7 @@ export function AddMetricCardDialog({
                   <SelectItem key={opt.value} value={opt.value}>
                     <div>
                       <div className="font-medium">{opt.label}</div>
-                      <div className="text-xs text-gray-500">{opt.description}</div>
+                      <div className="text-xs text-text-muted">{opt.description}</div>
                     </div>
                   </SelectItem>
                 ))}
@@ -155,7 +155,7 @@ export function AddMetricCardDialog({
               </SelectTrigger>
               <SelectContent>
                 {availableColumns.length === 0 ? (
-                  <div className="p-2 text-sm text-gray-500">
+                  <div className="p-2 text-sm text-text-muted">
                     No {['count', 'distinct_count'].includes(calculation) ? '' : 'numeric '}columns available
                   </div>
                 ) : (
@@ -163,7 +163,7 @@ export function AddMetricCardDialog({
                     <SelectItem key={col.name} value={col.name}>
                       <div>
                         <span className="font-medium">{col.name}</span>
-                        <span className="text-xs text-gray-500 ml-2">({col.type})</span>
+                        <span className="text-xs text-text-muted ml-2">({col.type})</span>
                       </div>
                     </SelectItem>
                   ))

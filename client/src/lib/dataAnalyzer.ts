@@ -351,3 +351,108 @@ export function getRecommendedChartType(
   return 'bar';
 }
 
+export interface SmartInsightInputs {
+  rows: Record<string, unknown>[];
+  columns: string[];
+}
+
+export interface SmartInsightsSummary {
+  columnSummaries: {
+    name: string;
+    nonEmptyCount: number;
+    missingCount: number;
+    uniqueCount: number;
+    isNumeric: boolean;
+    isCategorical: boolean;
+  }[];
+}
+
+export function summarizeDatasetForInsights({ rows, columns }: SmartInsightInputs): SmartInsightsSummary {
+  const columnSummaries = columns.map(column => {
+    let nonEmptyCount = 0;
+    let missingCount = 0;
+    const uniqueValues = new Set<string>();
+    let numericCandidateCount = 0;
+
+    rows.forEach(row => {
+      const raw = row[column];
+      if (raw === null || raw === undefined || raw === "") {
+        missingCount += 1;
+        return;
+      }
+
+      nonEmptyCount += 1;
+      uniqueValues.add(String(raw));
+
+      if (typeof raw === "number" && Number.isFinite(raw)) {
+        numericCandidateCount += 1;
+      } else if (typeof raw === "string") {
+        const parsed = Number(raw);
+        if (!Number.isNaN(parsed)) {
+          numericCandidateCount += 1;
+        }
+      }
+    });
+
+    const isNumeric = numericCandidateCount / Math.max(1, nonEmptyCount) >= 0.9;
+    const isCategorical = uniqueValues.size > 1 && uniqueValues.size <= Math.max(5, rows.length * 0.5);
+
+    return {
+      name: column,
+      nonEmptyCount,
+      missingCount,
+      uniqueCount: uniqueValues.size,
+      isNumeric,
+      isCategorical,
+    };
+  });
+
+  return { columnSummaries };
+}
+
+export function buildAlignedNumericVectors(
+  rows: Record<string, unknown>[],
+  columnA: string,
+  columnB: string
+): Array<{ a: number; b: number }> {
+  const aligned: Array<{ a: number; b: number }> = [];
+
+  rows.forEach(row => {
+    const rawA = row[columnA];
+    const rawB = row[columnB];
+    const valueA = Number(rawA);
+    const valueB = Number(rawB);
+
+    if (Number.isFinite(valueA) && Number.isFinite(valueB)) {
+      aligned.push({ a: valueA, b: valueB });
+    }
+  });
+
+  return aligned;
+}
+
+export function calculatePearsonCorrelation(values: Array<{ a: number; b: number }>): number {
+  const n = values.length;
+  if (n === 0) return 0;
+
+  let sumA = 0;
+  let sumB = 0;
+  let sumAB = 0;
+  let sumA2 = 0;
+  let sumB2 = 0;
+
+  values.forEach(({ a, b }) => {
+    sumA += a;
+    sumB += b;
+    sumAB += a * b;
+    sumA2 += a * a;
+    sumB2 += b * b;
+  });
+
+  const numerator = n * sumAB - sumA * sumB;
+  const denominator = Math.sqrt((n * sumA2 - sumA * sumA) * (n * sumB2 - sumB * sumB));
+
+  if (denominator === 0) return 0;
+  return numerator / denominator;
+}
+

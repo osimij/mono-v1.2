@@ -18,7 +18,14 @@ export const api = {
   // Dataset endpoints
   datasets: {
     getAll: () => authenticatedFetch("/api/datasets"),
-    getById: (id: number) => authenticatedFetch(`/api/datasets/${id}`),
+    getById: (id: number, options?: { limit?: number }) => {
+      const params = new URLSearchParams();
+      if (options?.limit && Number.isFinite(options.limit)) {
+        params.set("limit", String(Math.max(1, Math.floor(options.limit))));
+      }
+      const suffix = params.size > 0 ? `?${params.toString()}` : "";
+      return authenticatedFetch(`/api/datasets/${id}${suffix}`);
+    },
     upload: async (file: File) => {
       const sessionId = localStorage.getItem('sessionId');
       const formData = new FormData();
@@ -104,5 +111,34 @@ export const api = {
       return response.json();
     },
     deleteConfig: (id: number) => apiRequest('DELETE', `/api/dashboards/${id}`)
+  },
+
+  // Analysis configuration endpoints
+  analysis: {
+    getConfig: async (datasetId: number) => {
+      const sessionId = localStorage.getItem('sessionId');
+      if (!sessionId) {
+        return { datasetId, userId: 'anonymous', charts: [], insights: [] };
+      }
+      return authenticatedFetch(`/api/analysis/${datasetId}`);
+    },
+    saveConfig: async (config: any) => {
+      const sessionId = localStorage.getItem('sessionId');
+      if (!sessionId) {
+        return;
+      }
+      const response = await fetch('/api/analysis', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionId && { 'Authorization': `Bearer ${sessionId}` })
+        },
+        body: JSON.stringify(config)
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    }
   }
 };

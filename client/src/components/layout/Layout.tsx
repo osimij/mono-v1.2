@@ -9,6 +9,7 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const [location, navigate] = useLocation();
   const [sidebarWidth, setSidebarWidth] = useState(260);
@@ -36,8 +37,9 @@ export function Layout({ children }: LayoutProps) {
 
 
   useEffect(() => {
-    document.documentElement.style.setProperty("--sidebar-width", `${sidebarWidth}px`);
-  }, [sidebarWidth]);
+    const effectiveWidth = sidebarCollapsed ? 60 : sidebarWidth;
+    document.documentElement.style.setProperty("--sidebar-width", `${effectiveWidth}px`);
+  }, [sidebarWidth, sidebarCollapsed]);
 
   return (
     <div className="min-h-screen bg-surface-muted text-text-primary">
@@ -46,6 +48,8 @@ export function Layout({ children }: LayoutProps) {
         onClose={() => setSidebarOpen(false)} 
         width={sidebarWidth}
         onWidthChange={setSidebarWidth}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
       
       <main className="min-h-screen transition-[margin-left] duration-200 lg-ml-sidebar">
