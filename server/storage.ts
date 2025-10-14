@@ -427,7 +427,11 @@ class DatabaseStorage implements IStorage {
       .insert(datasets)
       .values(insertDataset)
       .returning();
-    return dataset;
+    const uploadedDataset = {
+      ...dataset,
+      uploadedAt: dataset.uploadedAt ?? new Date(),
+    };
+    return uploadedDataset;
   }
 
   async deleteDataset(id: number): Promise<void> {

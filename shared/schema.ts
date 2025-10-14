@@ -180,6 +180,59 @@ export interface DashboardMetricCard {
   comparisonValue?: number;
 }
 
+export type DashboardFilterOperator =
+  | 'equals'
+  | 'not_equals'
+  | 'contains'
+  | 'not_contains'
+  | 'starts_with'
+  | 'ends_with'
+  | 'greater_than'
+  | 'greater_than_or_equal'
+  | 'less_than'
+  | 'less_than_or_equal'
+  | 'between'
+  | 'in'
+  | 'is_null'
+  | 'is_not_null';
+
+export interface DashboardFilterRule {
+  id: string;
+  column: string;
+  operator: DashboardFilterOperator;
+  value?: string | number | boolean | null;
+  valueTo?: string | number | boolean | null;
+  caseSensitive?: boolean;
+}
+
+export type DashboardTimePreset =
+  | 'auto'
+  | '7d'
+  | '14d'
+  | '30d'
+  | '90d'
+  | '6m'
+  | '1y'
+  | 'ytd'
+  | 'all';
+
+export interface DashboardTimeRange {
+  preset?: DashboardTimePreset;
+  start?: string; // ISO string
+  end?: string; // ISO string
+  rollingDays?: number;
+}
+
+export type TemporalBucketInterval =
+  | 'none'
+  | 'auto'
+  | 'hour'
+  | 'day'
+  | 'week'
+  | 'month'
+  | 'quarter'
+  | 'year';
+
 export interface DashboardChart {
   id: string;
   title: string;
@@ -191,6 +244,9 @@ export interface DashboardChart {
   aggregation?: 'sum' | 'average' | 'count' | 'max' | 'min';
   filterColumn?: string;
   filterValue?: string;
+  filters?: DashboardFilterRule[];
+  timeRange?: DashboardTimeRange;
+  bucketInterval?: TemporalBucketInterval;
 }
 
 export interface DashboardConfig {

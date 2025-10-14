@@ -1,4 +1,4 @@
-import { CSSProperties, ReactNode, useCallback, useId, useMemo, useEffect, useState } from "react";
+import { CSSProperties, ReactNode, useCallback, useId, useMemo, useEffect, useState, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -7,6 +7,7 @@ import {
   CardDescription
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   BarChart as ReBarChart,
   Bar,
@@ -29,17 +30,27 @@ import {
   AreaChart as AreaChartIcon,
   BarChart3,
   BarChartHorizontal,
+  CalendarClock,
   Check,
   ChevronDown,
   Edit2,
+  Filter,
   FunctionSquare,
+  Layers,
   LineChart as LineChartIcon,
+  MoreVertical,
   PieChart as PieChartIcon,
   ScatterChart as ScatterChartIcon,
   Plus,
-  Trash2
+  Trash2,
+  X
 } from "lucide-react";
-import type { DashboardChart } from "@shared/schema";
+import type {
+  DashboardChart,
+  DashboardFilterRule,
+  DashboardTimeRange,
+  TemporalBucketInterval
+} from "@shared/schema";
 import { prepareChartData, prepareMultiColumnChartData, type DatasetAnalysis } from "@/lib/dataAnalyzer";
 import { cn } from "@/lib/utils";
 import {
@@ -48,6 +59,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Neon gradients inspired by Apple design
 const NEON_GRADIENTS = {
@@ -73,6 +101,29 @@ const CHART_COLORS = [
 ] as const;
 
 const GRADIENT_KEYS = Object.keys(NEON_GRADIENTS) as (keyof typeof NEON_GRADIENTS)[];
+
+const MAX_RAW_POINTS = 400;
+
+type ColumnType = 'number' | 'string' | 'date' | 'boolean';
+
+function downsampleData<T>(rows: T[], maxPoints = MAX_RAW_POINTS): T[] {
+  if (rows.length <= maxPoints) {
+    return rows;
+  }
+
+  const step = Math.ceil(rows.length / maxPoints);
+  const downsampled: T[] = [];
+  for (let index = 0; index < rows.length; index += step) {
+    downsampled.push(rows[index]);
+  }
+
+  const lastItem = rows[rows.length - 1];
+  if (downsampled[downsampled.length - 1] !== lastItem) {
+    downsampled.push(lastItem);
+  }
+
+  return downsampled;
+}
 
 // Hook to get theme-aware chart colors
 function useChartTheme() {
@@ -230,6 +281,631 @@ const normalizeScatterAxisValue = (value: unknown): NormalizedAxisValue => {
   return { numericValue: Number.NaN, isTemporal: false };
 };
 
+const MS_IN_HOUR = 60 * 60 * 1000;
+const MS_IN_DAY = 24 * MS_IN_HOUR;
+const MS_IN_WEEK = 7 * MS_IN_DAY;
+const MS_IN_MONTH_APPROX = 30 * MS_IN_DAY;
+const MS_IN_QUARTER_APPROX = 90 * MS_IN_DAY;
+const MS_IN_YEAR_APPROX = 365 * MS_IN_DAY;
+
+const TIME_PRESET_LABEL: Record<NonNullable<DashboardTimeRange["preset"]>, string> = {
+  auto: "Auto",
+  "7d": "Last 7 days",
+  "14d": "Last 2 weeks",
+  "30d": "Last 30 days",
+  "90d": "Last 90 days",
+  "6m": "Last 6 months",
+  "1y": "Last 12 months",
+  ytd: "Year to date",
+  all: "All time"
+};
+
+type TemporalBucketMeta = {
+  labels: Map<string | number, string>;
+  interval: TemporalBucketInterval;
+  formatter: (value: string | number) => string;
+};
+
+const toNumber = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim().length > 0) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return numeric;
+  }
+  return null;
+};
+
+const parsePossibleDate = (value: unknown): number | null => {
+  if (value == null) return null;
+  if (value instanceof Date) {
+    const time = value.getTime();
+    return Number.isFinite(time) ? time : null;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  const stringValue = String(value);
+  if (!stringValue || stringValue.toLowerCase() === "nan") return null;
+  const parsed = Date.parse(stringValue);
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
+const resolveTimePresetBounds = (
+  preset: NonNullable<DashboardTimeRange["preset"]>,
+  anchor: number
+): { start?: number; end?: number } => {
+  switch (preset) {
+    case "7d":
+      return { start: anchor - MS_IN_DAY * 7, end: anchor };
+    case "14d":
+      return { start: anchor - MS_IN_DAY * 14, end: anchor };
+    case "30d":
+      return { start: anchor - MS_IN_DAY * 30, end: anchor };
+    case "90d":
+      return { start: anchor - MS_IN_DAY * 90, end: anchor };
+    case "6m":
+      return { start: anchor - MS_IN_MONTH_APPROX * 6, end: anchor };
+    case "1y":
+      return { start: anchor - MS_IN_YEAR_APPROX, end: anchor };
+    case "ytd": {
+      const anchorDate = new Date(anchor);
+      const yearStart = new Date(anchorDate.getFullYear(), 0, 1).getTime();
+      return { start: yearStart, end: anchor };
+    }
+    case "auto":
+    case "all":
+    default:
+      return { start: undefined, end: undefined };
+  }
+};
+
+const resolveTimeRangeBounds = (
+  rows: Record<string, unknown>[],
+  axisKey: string,
+  timeRange: DashboardTimeRange | undefined
+): { start?: number; end?: number; preset?: DashboardTimeRange["preset"]; rollingDays?: number } => {
+  if (!timeRange) return {};
+
+  const timestamps: number[] = [];
+  rows.forEach((row) => {
+    const parsed = parsePossibleDate((row as Record<string, unknown>)[axisKey]);
+    if (parsed != null) timestamps.push(parsed);
+  });
+
+  if (timestamps.length === 0) {
+    return { ...timeRange };
+  }
+
+  const anchor = Math.max(...timestamps);
+  const boundsFromPreset =
+    timeRange.preset && timeRange.preset !== "auto"
+      ? resolveTimePresetBounds(timeRange.preset, anchor)
+      : {};
+
+  if (!boundsFromPreset.start && !boundsFromPreset.end && timeRange.rollingDays) {
+    const range = MS_IN_DAY * timeRange.rollingDays;
+    return {
+      start: anchor - range,
+      end: anchor,
+      preset: timeRange.preset,
+      rollingDays: timeRange.rollingDays
+    };
+  }
+
+  const startExplicit = timeRange.start ? Date.parse(timeRange.start) : undefined;
+  const endExplicit = timeRange.end ? Date.parse(timeRange.end) : undefined;
+
+  const start = Number.isFinite(startExplicit) ? startExplicit : boundsFromPreset.start;
+  const end = Number.isFinite(endExplicit) ? endExplicit : boundsFromPreset.end ?? (timeRange.preset ? anchor : undefined);
+
+  return {
+    start,
+    end,
+    preset: timeRange.preset,
+    rollingDays: timeRange.rollingDays
+  };
+};
+
+const filterRowsByTimeBounds = (
+  rows: Record<string, unknown>[],
+  axisKey: string,
+  bounds: { start?: number; end?: number }
+) => {
+  if (!bounds.start && !bounds.end) return rows;
+  return rows.filter((row) => {
+    const value = (row as Record<string, unknown>)[axisKey];
+    const timestamp = parsePossibleDate(value);
+    if (timestamp == null) return false;
+    if (bounds.start && timestamp < bounds.start) return false;
+    if (bounds.end && timestamp > bounds.end) return false;
+    return true;
+  });
+};
+
+const resolveAutoBucketInterval = (spanMs: number, totalPoints: number): TemporalBucketInterval => {
+  if (!Number.isFinite(spanMs) || spanMs <= 0) {
+    return "day";
+  }
+
+  const targetBuckets = Math.max(12, Math.min(60, Math.floor(totalPoints / 4)));
+  const approxBucketSize = spanMs / Math.max(1, targetBuckets);
+
+  if (approxBucketSize <= MS_IN_HOUR) {
+    return "hour";
+  }
+  if (approxBucketSize <= MS_IN_DAY) {
+    return "day";
+  }
+  if (approxBucketSize <= MS_IN_WEEK) {
+    return "week";
+  }
+  if (approxBucketSize <= MS_IN_MONTH_APPROX) {
+    return "month";
+  }
+  if (approxBucketSize <= MS_IN_QUARTER_APPROX) {
+    return "quarter";
+  }
+  return "year";
+};
+
+const floorTimestampToInterval = (timestamp: number, interval: TemporalBucketInterval): number => {
+  const date = new Date(timestamp);
+  switch (interval) {
+    case "hour":
+      date.setMinutes(0, 0, 0);
+      return date.getTime();
+    case "day":
+      date.setHours(0, 0, 0, 0);
+      return date.getTime();
+    case "week": {
+      const day = date.getDay();
+      const diff = (day + 6) % 7; // Monday as start of week
+      date.setDate(date.getDate() - diff);
+      date.setHours(0, 0, 0, 0);
+      return date.getTime();
+    }
+    case "month":
+      date.setDate(1);
+      date.setHours(0, 0, 0, 0);
+      return date.getTime();
+    case "quarter": {
+      const month = date.getMonth();
+      const quarterStartMonth = Math.floor(month / 3) * 3;
+      date.setMonth(quarterStartMonth, 1);
+      date.setHours(0, 0, 0, 0);
+      return date.getTime();
+    }
+    case "year":
+      date.setMonth(0, 1);
+      date.setHours(0, 0, 0, 0);
+      return date.getTime();
+    case "none":
+    case "auto":
+    default:
+      return timestamp;
+  }
+};
+
+const formatBucketLabel = (timestamp: number, interval: TemporalBucketInterval): string => {
+  if (!Number.isFinite(timestamp)) return "";
+  const date = new Date(timestamp);
+  switch (interval) {
+    case "hour":
+      return new Intl.DateTimeFormat(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "numeric"
+      }).format(date);
+    case "day":
+      return new Intl.DateTimeFormat(undefined, {
+        month: "short",
+        day: "numeric"
+      }).format(date);
+    case "week": {
+      const end = new Date(timestamp + MS_IN_WEEK - 1);
+      const startLabel = new Intl.DateTimeFormat(undefined, {
+        month: "short",
+        day: "numeric"
+      }).format(date);
+      const endLabel = new Intl.DateTimeFormat(undefined, {
+        month: "short",
+        day: "numeric"
+      }).format(end);
+      return `${startLabel} – ${endLabel}`;
+    }
+    case "month":
+      return new Intl.DateTimeFormat(undefined, {
+        month: "short",
+        year: "numeric"
+      }).format(date);
+    case "quarter": {
+      const quarter = Math.floor(date.getMonth() / 3) + 1;
+      return `Q${quarter} ${date.getFullYear()}`;
+    }
+    case "year":
+      return String(date.getFullYear());
+    case "none":
+    case "auto":
+    default:
+      return formatTemporalLabel(timestamp);
+  }
+};
+
+const bucketTemporalRows = (
+  rows: Record<string, unknown>[],
+  axisKey: string,
+  requestedInterval: TemporalBucketInterval | undefined,
+  axisType: ColumnType
+): { rows: Record<string, unknown>[]; bucketMeta: TemporalBucketMeta | null; resolvedInterval: TemporalBucketInterval } => {
+  if (axisType !== "date") {
+    return { rows, bucketMeta: null, resolvedInterval: "none" };
+  }
+
+  if (!requestedInterval || requestedInterval === "none") {
+    const labels = new Map<string | number, string>();
+    rows.forEach((row) => {
+      const parsed = parsePossibleDate((row as Record<string, unknown>)[axisKey]);
+      if (parsed != null) {
+        const key = Number.isFinite(parsed) ? parsed : String(row[axisKey]);
+        labels.set(key, formatTemporalLabel(parsed));
+      }
+    });
+
+    return {
+      rows: rows.map((row) => {
+        const parsed = parsePossibleDate((row as Record<string, unknown>)[axisKey]);
+        if (parsed == null) return row;
+        return {
+          ...row,
+          [axisKey]: parsed
+        };
+      }),
+      bucketMeta: {
+        labels,
+        interval: "none",
+        formatter: (value) => {
+          if (typeof value === "number") {
+            return formatTemporalLabel(value);
+          }
+          const numeric = Number(value);
+          if (Number.isFinite(numeric)) {
+            return formatTemporalLabel(numeric);
+          }
+          return String(value ?? "");
+        }
+      },
+      resolvedInterval: "none"
+    };
+  }
+
+  const timestamps: number[] = [];
+  rows.forEach((row) => {
+    const parsed = parsePossibleDate((row as Record<string, unknown>)[axisKey]);
+    if (parsed != null) timestamps.push(parsed);
+  });
+
+  if (timestamps.length === 0) {
+    return { rows, bucketMeta: null, resolvedInterval: requestedInterval };
+  }
+
+  const minTs = Math.min(...timestamps);
+  const maxTs = Math.max(...timestamps);
+  const spanMs = maxTs - minTs;
+
+  const resolvedInterval = requestedInterval === "auto"
+    ? resolveAutoBucketInterval(spanMs, timestamps.length)
+    : requestedInterval;
+
+  const labels = new Map<string | number, string>();
+
+  const processedRows = rows
+    .map((row) => {
+      const parsed = parsePossibleDate((row as Record<string, unknown>)[axisKey]);
+      if (parsed == null) return null;
+      const bucketTimestamp = floorTimestampToInterval(parsed, resolvedInterval);
+      const label = formatBucketLabel(bucketTimestamp, resolvedInterval);
+      const key = bucketTimestamp;
+      labels.set(key, label);
+      return {
+        ...row,
+        [axisKey]: bucketTimestamp
+      };
+    })
+    .filter((row): row is Record<string, unknown> => row !== null);
+
+  return {
+    rows: processedRows,
+    bucketMeta: {
+      labels,
+      interval: resolvedInterval,
+      formatter: (value) => {
+        const numeric = typeof value === "number" ? value : Number(value);
+        if (Number.isFinite(numeric) && labels.has(numeric)) {
+          return labels.get(numeric) ?? String(value ?? "");
+        }
+        return String(value ?? "");
+      }
+    },
+    resolvedInterval
+  };
+};
+
+const BOOLEAN_TRUE_VALUES = new Set(["true", "1", "yes", "y", "on"]);
+const BOOLEAN_FALSE_VALUES = new Set(["false", "0", "no", "n", "off"]);
+
+type FilterOperatorOption = {
+  value: DashboardFilterRule["operator"];
+  label: string;
+  requiresValue?: boolean;
+  requiresRange?: boolean;
+};
+
+const STRING_FILTER_OPERATORS: FilterOperatorOption[] = [
+  { value: "equals", label: "Equals", requiresValue: true },
+  { value: "not_equals", label: "Does not equal", requiresValue: true },
+  { value: "contains", label: "Contains", requiresValue: true },
+  { value: "not_contains", label: "Does not contain", requiresValue: true },
+  { value: "starts_with", label: "Starts with", requiresValue: true },
+  { value: "ends_with", label: "Ends with", requiresValue: true },
+  { value: "in", label: "Matches any (comma separated)", requiresValue: true },
+  { value: "is_null", label: "Is empty" },
+  { value: "is_not_null", label: "Is not empty" }
+];
+
+const NUMBER_FILTER_OPERATORS: FilterOperatorOption[] = [
+  { value: "equals", label: "Equals", requiresValue: true },
+  { value: "not_equals", label: "Does not equal", requiresValue: true },
+  { value: "greater_than", label: "Greater than", requiresValue: true },
+  { value: "greater_than_or_equal", label: "Greater than or equal", requiresValue: true },
+  { value: "less_than", label: "Less than", requiresValue: true },
+  { value: "less_than_or_equal", label: "Less than or equal", requiresValue: true },
+  { value: "between", label: "Between", requiresRange: true },
+  { value: "in", label: "Matches any (comma separated)", requiresValue: true },
+  { value: "is_null", label: "Is empty" },
+  { value: "is_not_null", label: "Is not empty" }
+];
+
+const DATE_FILTER_OPERATORS: FilterOperatorOption[] = [
+  { value: "equals", label: "Equals", requiresValue: true },
+  { value: "not_equals", label: "Does not equal", requiresValue: true },
+  { value: "greater_than", label: "After", requiresValue: true },
+  { value: "greater_than_or_equal", label: "On or after", requiresValue: true },
+  { value: "less_than", label: "Before", requiresValue: true },
+  { value: "less_than_or_equal", label: "On or before", requiresValue: true },
+  { value: "between", label: "Between", requiresRange: true },
+  { value: "is_null", label: "Is empty" },
+  { value: "is_not_null", label: "Is not empty" }
+];
+
+const BOOLEAN_FILTER_OPERATORS: FilterOperatorOption[] = [
+  { value: "equals", label: "Is", requiresValue: true },
+  { value: "not_equals", label: "Is not", requiresValue: true },
+  { value: "is_null", label: "Is empty" },
+  { value: "is_not_null", label: "Is not empty" }
+];
+
+const FILTER_OPERATORS_BY_TYPE: Record<ColumnType, FilterOperatorOption[]> = {
+  string: STRING_FILTER_OPERATORS,
+  number: NUMBER_FILTER_OPERATORS,
+  date: DATE_FILTER_OPERATORS,
+  boolean: BOOLEAN_FILTER_OPERATORS
+};
+
+const BUCKET_LABELS: Record<TemporalBucketInterval, string> = {
+  none: "Raw timestamps",
+  auto: "Automatic",
+  hour: "Hourly",
+  day: "Daily",
+  week: "Weekly",
+  month: "Monthly",
+  quarter: "Quarterly",
+  year: "Yearly"
+};
+
+const generateRuleId = (): string => {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `filter-${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const getDefaultOperatorForType = (type: ColumnType): DashboardFilterRule["operator"] => {
+  if (type === "number" || type === "date") {
+    return "between";
+  }
+  if (type === "boolean") {
+    return "equals";
+  }
+  return "equals";
+};
+
+const findOperatorOption = (type: ColumnType, operator: DashboardFilterRule["operator"]): FilterOperatorOption | undefined => {
+  return FILTER_OPERATORS_BY_TYPE[type].find(option => option.value === operator);
+};
+
+const coerceValueForType = (value: unknown, type: ColumnType): unknown => {
+  if (value == null) return null;
+  switch (type) {
+    case "number": {
+      const numeric = toNumber(value);
+      return numeric;
+    }
+    case "boolean": {
+      if (typeof value === "boolean") return value;
+      const stringValue = String(value).toLowerCase();
+      if (BOOLEAN_TRUE_VALUES.has(stringValue)) return true;
+      if (BOOLEAN_FALSE_VALUES.has(stringValue)) return false;
+      return null;
+    }
+    case "date": {
+      const timestamp = parsePossibleDate(value);
+      return timestamp;
+    }
+    case "string":
+    default:
+      return String(value);
+  }
+};
+
+const evaluateFilterRule = (
+  row: Record<string, unknown>,
+  rule: DashboardFilterRule,
+  columnTypeLookup: Map<string, ColumnType>
+): boolean => {
+  const type = columnTypeLookup.get(rule.column) ?? "string";
+  const rawValue = (row as Record<string, unknown>)[rule.column];
+  const coercedRowValue = coerceValueForType(rawValue, type);
+
+  if (rule.operator === "is_null") {
+    return coercedRowValue == null || coercedRowValue === "";
+  }
+  if (rule.operator === "is_not_null") {
+    return coercedRowValue != null && coercedRowValue !== "";
+  }
+
+  if (rule.operator === "between") {
+    if (type === "date" || type === "number") {
+      const numericValue = typeof coercedRowValue === "number" ? coercedRowValue : toNumber(coercedRowValue);
+      if (!Number.isFinite(numericValue)) return false;
+      const start = rule.value == null ? Number.NEGATIVE_INFINITY : Number(coerceValueForType(rule.value, type));
+      const end = rule.valueTo == null ? Number.POSITIVE_INFINITY : Number(coerceValueForType(rule.valueTo, type));
+      return numericValue >= start && numericValue <= end;
+    }
+    return false;
+  }
+
+  if (rule.operator === "in") {
+    const raw = rule.value;
+    if (raw == null) return false;
+    const values = Array.isArray(raw)
+      ? raw.map((item) => String(item))
+      : String(raw)
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean);
+    if (values.length === 0) return false;
+    const candidate = String(coercedRowValue ?? "");
+    return values.some((value) => value === candidate);
+  }
+
+  if (coercedRowValue == null || coercedRowValue === "") {
+    return false;
+  }
+
+  const comparisonValue = rule.value;
+  if (comparisonValue == null) return false;
+
+  if (type === "number" || type === "date") {
+    const numericRowValue = typeof coercedRowValue === "number" ? coercedRowValue : toNumber(coercedRowValue);
+    const numericComparison = Number(coerceValueForType(comparisonValue, type));
+    if (!Number.isFinite(numericRowValue) || !Number.isFinite(numericComparison)) {
+      return false;
+    }
+    switch (rule.operator) {
+      case "equals":
+        return numericRowValue === numericComparison;
+      case "not_equals":
+        return numericRowValue !== numericComparison;
+      case "greater_than":
+        return numericRowValue > numericComparison;
+      case "greater_than_or_equal":
+        return numericRowValue >= numericComparison;
+      case "less_than":
+        return numericRowValue < numericComparison;
+      case "less_than_or_equal":
+        return numericRowValue <= numericComparison;
+      default:
+        return false;
+    }
+  }
+
+  if (type === "boolean") {
+    const booleanRow = Boolean(coercedRowValue);
+    const booleanComparison = Boolean(coerceValueForType(comparisonValue, type));
+    switch (rule.operator) {
+      case "equals":
+        return booleanRow === booleanComparison;
+      case "not_equals":
+        return booleanRow !== booleanComparison;
+      default:
+        return false;
+    }
+  }
+
+  const rowString = String(coercedRowValue);
+  const comparisonString = String(comparisonValue);
+  const lhs = rule.caseSensitive ? rowString : rowString.toLowerCase();
+  const rhs = rule.caseSensitive ? comparisonString : comparisonString.toLowerCase();
+
+  switch (rule.operator) {
+    case "equals":
+      return lhs === rhs;
+    case "not_equals":
+      return lhs !== rhs;
+    case "contains":
+      return lhs.includes(rhs);
+    case "not_contains":
+      return !lhs.includes(rhs);
+    case "starts_with":
+      return lhs.startsWith(rhs);
+    case "ends_with":
+      return lhs.endsWith(rhs);
+    default:
+      return false;
+  }
+};
+
+const applyFilterRules = (
+  rows: Record<string, unknown>[],
+  filters: DashboardFilterRule[] | undefined,
+  columnTypeLookup: Map<string, ColumnType>
+) => {
+  if (!filters || filters.length === 0) return rows;
+  return rows.filter((row) => filters.every((filter) => evaluateFilterRule(row, filter, columnTypeLookup)));
+};
+
+const formatFilterSummary = (
+  filters: DashboardFilterRule[] | undefined,
+  legacyFilter: { column?: string; value?: unknown } | undefined,
+  columnTypeLookup: Map<string, ColumnType>
+): string => {
+  const segments: string[] = [];
+
+  if (legacyFilter?.column && legacyFilter.value !== undefined && legacyFilter.value !== "") {
+    segments.push(
+      `${humanizeColumnName(legacyFilter.column)} = ${String(legacyFilter.value)}`
+    );
+  }
+
+  if (filters && filters.length > 0) {
+    const rulesSummary = filters
+    .map((filter) => {
+      const type = columnTypeLookup.get(filter.column) ?? "string";
+      const operator = FILTER_OPERATORS_BY_TYPE[type].find((option) => option.value === filter.operator)?.label ?? filter.operator;
+      const valuePart = (() => {
+        if (filter.operator === "is_null" || filter.operator === "is_not_null") {
+          return "";
+        }
+        if (filter.operator === "between") {
+          const start = filter.value ?? "";
+          const end = filter.valueTo ?? "";
+          return `${start} and ${end}`;
+        }
+        if (Array.isArray(filter.value)) {
+          return filter.value.join(", ");
+        }
+        return String(filter.value ?? "");
+      })();
+      return `${humanizeColumnName(filter.column)} ${operator.toLowerCase()} ${valuePart}`.trim();
+    })
+    .join(" · ");
+    segments.push(rulesSummary);
+  }
+
+  if (segments.length === 0) return "No filters";
+  return segments.join(" · ");
+};
+
 export function DynamicChart({
   chart,
   data,
@@ -242,31 +918,117 @@ export function DynamicChart({
   const yAxisColumns = Array.isArray(chart.yAxis) ? chart.yAxis : [chart.yAxis];
   const isSingleColumn = yAxisColumns.length === 1;
 
-  const filteredData = useMemo(() => {
-    if (
-      !chart.filterColumn ||
-      chart.filterValue === undefined ||
-      chart.filterValue === null ||
-      chart.filterValue === ""
-    ) {
-      return data;
-    }
+  const [hasAggregationOverride, setHasAggregationOverride] = useState(() => chart.aggregation !== undefined);
+  const previousXAxisRef = useRef(chart.xAxis);
+  const [isFiltersDialogOpen, setIsFiltersDialogOpen] = useState(false);
+  const [isBucketDialogOpen, setIsBucketDialogOpen] = useState(false);
 
-    return data.filter(row => {
-      const value = row[chart.filterColumn!];
-      if (value === null || value === undefined) return false;
-      return String(value) === String(chart.filterValue);
-    });
-  }, [data, chart.filterColumn, chart.filterValue]);
+  const [filtersDraft, setFiltersDraft] = useState<DashboardFilterRule[]>(() => chart.filters ?? []);
+  const [bucketDraft, setBucketDraft] = useState<TemporalBucketInterval>(() => chart.bucketInterval ?? (chart.xAxis ? "auto" : "none"));
+
+  useEffect(() => {
+    if (chart.aggregation !== undefined) {
+      setHasAggregationOverride(true);
+    }
+  }, [chart.aggregation]);
+
+  useEffect(() => {
+    if (chart.xAxis !== previousXAxisRef.current) {
+      previousXAxisRef.current = chart.xAxis;
+      if (chart.aggregation === undefined) {
+        setHasAggregationOverride(false);
+      }
+    }
+  }, [chart.aggregation, chart.xAxis]);
+
+  const columnTypeLookup = useMemo(() => {
+    const map = new Map<string, ColumnType>();
+    if (datasetAnalysis?.columns) {
+      datasetAnalysis.columns.forEach((column) => {
+        map.set(column.name, column.type as ColumnType);
+      });
+    }
+    return map;
+  }, [datasetAnalysis?.columns]);
+
+  const xAxisType = columnTypeLookup.get(chart.xAxis) ?? 'string';
+  const isCategoricalAxis = xAxisType === 'string' || xAxisType === 'boolean';
+  const isTemporalAxis = xAxisType === 'date';
+
+  const defaultAggregation = useMemo<DashboardChart["aggregation"]>(() => {
+    if (chart.chartType === "scatter") {
+      return undefined;
+    }
+    if (isCategoricalAxis) {
+      return 'sum';
+    }
+    if (isTemporalAxis && yAxisColumns.length > 0) {
+      return 'sum';
+    }
+    return undefined;
+  }, [chart.chartType, isCategoricalAxis, isTemporalAxis, yAxisColumns.length]);
+
+  const {
+    rows: filteredData,
+    bucketMeta,
+    timeBounds,
+    resolvedInterval
+  } = useMemo(() => {
+    const withLegacyFilter = (() => {
+      if (
+        !chart.filterColumn ||
+        chart.filterValue === undefined ||
+        chart.filterValue === null ||
+        chart.filterValue === ""
+      ) {
+        return data;
+      }
+
+      return data.filter(row => {
+        const value = row[chart.filterColumn!];
+        if (value === null || value === undefined) return false;
+        return String(value) === String(chart.filterValue);
+      });
+    })();
+
+    const afterAdvancedFilters = applyFilterRules(
+      withLegacyFilter,
+      chart.filters,
+      columnTypeLookup
+    );
+
+    const bounds = resolveTimeRangeBounds(afterAdvancedFilters, chart.xAxis, chart.timeRange);
+    const afterTimeFilter = filterRowsByTimeBounds(afterAdvancedFilters, chart.xAxis, bounds);
+
+    const { rows: bucketedRows, bucketMeta, resolvedInterval } = bucketTemporalRows(
+      afterTimeFilter,
+      chart.xAxis,
+      chart.bucketInterval,
+      columnTypeLookup.get(chart.xAxis) ?? 'string'
+    );
+
+    return {
+      rows: bucketedRows,
+      bucketMeta,
+      timeBounds: bounds,
+      resolvedInterval
+    };
+  }, [chart.bucketInterval, chart.filterColumn, chart.filterValue, chart.filters, chart.timeRange, chart.xAxis, columnTypeLookup, data]);
 
   const chartHeight =
     chart.size === "large" ? 360 :
     chart.size === "small" ? 220 : 300;
 
+  const appliedAggregation: DashboardChart["aggregation"] | undefined = hasAggregationOverride
+    ? chart.aggregation
+    : (chart.aggregation ?? defaultAggregation);
+
   const { chartData, scatterAxisMeta } = useMemo(() => {
-    const prepared = isSingleColumn
-      ? prepareChartData(filteredData, chart.xAxis, yAxisColumns[0], chart.aggregation)
-      : prepareMultiColumnChartData(filteredData, chart.xAxis, yAxisColumns, chart.aggregation);
+    const preparedRaw = isSingleColumn
+      ? prepareChartData(filteredData, chart.xAxis, yAxisColumns[0], appliedAggregation)
+      : prepareMultiColumnChartData(filteredData, chart.xAxis, yAxisColumns, appliedAggregation);
+
+    const prepared = appliedAggregation ? preparedRaw : downsampleData(preparedRaw, MAX_RAW_POINTS);
 
     if (chart.chartType !== "scatter") {
       return { chartData: prepared, scatterAxisMeta: null };
@@ -299,10 +1061,28 @@ export function DynamicChart({
       });
 
       if (!hasInvalidMetric) {
-        if (label !== undefined) {
-          xLabelMap.set(numericValue, label);
+        let resolvedLabel = label;
+        let resolvedIsTemporal = isTemporal;
+
+        if (bucketMeta) {
+          const bucketValue =
+            typeof rawXValue === "number" || typeof rawXValue === "string"
+              ? bucketMeta.formatter(rawXValue)
+              : undefined;
+
+          if (bucketMeta.labels?.has(numericValue)) {
+            resolvedLabel = bucketMeta.labels.get(numericValue) ?? bucketValue ?? resolvedLabel;
+          } else if (bucketValue) {
+            resolvedLabel = bucketValue;
+          }
+
+          resolvedIsTemporal = true;
         }
-        if (isTemporal) {
+
+        if (resolvedLabel !== undefined) {
+          xLabelMap.set(numericValue, resolvedLabel);
+        }
+        if (resolvedIsTemporal) {
           usesTemporalAxis = true;
         }
         nextData.push(nextRow);
@@ -310,13 +1090,13 @@ export function DynamicChart({
     });
 
     return {
-      chartData: nextData,
+      chartData: appliedAggregation ? nextData : downsampleData(nextData, MAX_RAW_POINTS),
       scatterAxisMeta: {
         xLabelMap,
         isTemporalAxis: usesTemporalAxis
       }
     };
-  }, [chart.aggregation, chart.chartType, chart.xAxis, filteredData, isSingleColumn, yAxisColumns]);
+  }, [appliedAggregation, bucketMeta, chart.chartType, chart.xAxis, filteredData, isSingleColumn, yAxisColumns]);
 
   const generatedId = useId();
   const chartUid = useMemo(() => {
@@ -375,21 +1155,73 @@ export function DynamicChart({
     "[&_.recharts-pie-label-text]:fill-white/90 [&_.recharts-pie-label-text]:text-xs [&_.recharts-pie-label-text]:font-medium"
   );
 
+  const formatXAxisValue = useCallback(
+    (value: unknown): string => {
+      if (value == null || value === "") return "";
+
+      const primitive =
+        typeof value === "number" || typeof value === "string" ? value : String(value);
+
+      if (bucketMeta) {
+        const formatted = bucketMeta.formatter(primitive as string | number);
+        if (formatted && formatted.length > 0) {
+          return formatted;
+        }
+      }
+
+      if (isTemporalAxis) {
+        const numeric = typeof primitive === "number" ? primitive : Number(primitive);
+        if (Number.isFinite(numeric)) {
+          return formatTemporalLabel(numeric, String(primitive));
+        }
+        const parsed = Date.parse(String(primitive));
+        if (!Number.isNaN(parsed)) {
+          return formatTemporalLabel(parsed, String(primitive));
+        }
+      }
+
+      return String(primitive);
+    },
+    [bucketMeta, isTemporalAxis]
+  );
+
   const chartTypeDisplay = CHART_TYPE_META[chart.chartType];
-  const aggregationDisplay = chart.aggregation
-    ? AGGREGATION_LABEL[chart.aggregation]
+  const aggregationDisplay = appliedAggregation
+    ? AGGREGATION_LABEL[appliedAggregation]
     : "Raw values";
+  const aggregationSummaryLabel = hasAggregationOverride
+    ? aggregationDisplay
+    : `Auto · ${aggregationDisplay}`;
 
   const hasFilter = Boolean(chart.filterColumn && chart.filterValue);
 
-  const aggregationOptions = useMemo<ChartSelectOption[]>(() => [
-    { value: "none", label: "Raw values", description: "Use raw data without aggregation" },
-    ...Object.entries(AGGREGATION_LABEL).map(([value, label]) => ({
-      value,
-      label,
-      description: `Aggregate using ${label.toLowerCase()}`
-    }))
-  ], []);
+  const aggregationOptions = useMemo<ChartSelectOption[]>(() => {
+    return [
+      {
+        value: "auto",
+        label: "Auto",
+        description: chart.chartType === "scatter"
+          ? "Plot raw values without aggregation"
+          : isCategoricalAxis
+            ? "Automatically group categories by sum"
+            : isTemporalAxis
+              ? "Automatically roll up dates with a sum"
+              : "Let Mono pick a sensible aggregation"
+      },
+      {
+        value: "none",
+        label: "Raw values",
+        description: filteredData.length > MAX_RAW_POINTS
+          ? `Show every row (downsampled to ${MAX_RAW_POINTS} points)`
+          : "Show every row"
+      },
+      ...Object.entries(AGGREGATION_LABEL).map(([value, label]) => ({
+        value,
+        label,
+        description: `Aggregate using ${label.toLowerCase()}`
+      }))
+    ];
+  }, [chart.chartType, filteredData.length, isCategoricalAxis, isTemporalAxis]);
 
   const chartTypeOptions = useMemo<ChartSelectOption[]>(() =>
     Object.entries(CHART_TYPE_META).map(([value, meta]) => ({
@@ -398,7 +1230,9 @@ export function DynamicChart({
     }))
   , []);
 
-  const aggregationValue = chart.aggregation ?? "none";
+  const aggregationValue = hasAggregationOverride
+    ? (appliedAggregation ?? "none")
+    : "auto";
   const chartTypeValue = chart.chartType;
 
   const emitChartUpdate = useCallback((updates: Partial<DashboardChart>) => {
@@ -449,8 +1283,8 @@ export function DynamicChart({
 
   const generatedDescription = useMemo(() => {
     const detailSegments: string[] = [];
-    const aggregationPrefix = chart.aggregation
-      ? `${AGGREGATION_LABEL[chart.aggregation].toLowerCase()} of `
+    const aggregationPrefix = appliedAggregation
+      ? `${AGGREGATION_LABEL[appliedAggregation].toLowerCase()} of `
       : "";
 
     detailSegments.push(`${aggregationPrefix}${yAxisReadable} by ${xAxisReadable}`);
@@ -495,6 +1329,13 @@ export function DynamicChart({
   }, [emitChartUpdate, metricOptions, yAxisColumns]);
 
   const handleAggregationChange = useCallback((value: string) => {
+    if (value === "auto") {
+      setHasAggregationOverride(false);
+      emitChartUpdate({ aggregation: undefined });
+      return;
+    }
+
+    setHasAggregationOverride(true);
     emitChartUpdate({
       aggregation: value === "none"
         ? undefined
@@ -510,6 +1351,26 @@ export function DynamicChart({
       emitChartUpdate({ chartType: nextType });
     }
   }, [emitChartUpdate, yAxisColumns]);
+
+  const activeTimePreset = chart.timeRange?.preset ?? "auto";
+  const timePresetOptions: Array<{ value: NonNullable<DashboardTimeRange["preset"]>; label: string }> = [
+    { value: "auto", label: "Auto" },
+    { value: "7d", label: "7D" },
+    { value: "14d", label: "2W" },
+    { value: "30d", label: "4W" },
+    { value: "90d", label: "3M" },
+    { value: "6m", label: "6M" },
+    { value: "1y", label: "1Y" },
+    { value: "all", label: "All" }
+  ];
+
+  const handleTimePresetChange = useCallback((preset: NonNullable<DashboardTimeRange["preset"]>) => {
+    if (preset === "auto") {
+      emitChartUpdate({ timeRange: undefined });
+    } else {
+      emitChartUpdate({ timeRange: { preset } });
+    }
+  }, [emitChartUpdate]);
 
   const renderChart = () => {
     const commonProps = {
@@ -528,6 +1389,7 @@ export function DynamicChart({
               axisLine={false}
               tickLine={false}
               tickMargin={12}
+              tickFormatter={(value) => formatXAxisValue(value)}
             />
             <YAxis
               tick={{ fill: chartTheme.labelFill, fontSize: 11 }}
@@ -540,6 +1402,7 @@ export function DynamicChart({
               contentStyle={chartTheme.tooltipStyle}
               labelStyle={chartTheme.tooltipLabelStyle}
               itemStyle={chartTheme.tooltipItemStyle}
+              labelFormatter={(value) => formatXAxisValue(value)}
             />
             {seriesMeta.map(series => (
               <Line
@@ -577,6 +1440,7 @@ export function DynamicChart({
               axisLine={false}
               tickLine={false}
               tickMargin={12}
+              tickFormatter={(value) => formatXAxisValue(value)}
             />
             <YAxis
               tick={{ fill: chartTheme.labelFill, fontSize: 11 }}
@@ -589,6 +1453,7 @@ export function DynamicChart({
               contentStyle={chartTheme.tooltipStyle}
               labelStyle={chartTheme.tooltipLabelStyle}
               itemStyle={chartTheme.tooltipItemStyle}
+              labelFormatter={(value) => formatXAxisValue(value)}
             />
             {seriesMeta.map(series => (
               <Area
@@ -615,7 +1480,7 @@ export function DynamicChart({
               cy="50%"
               innerRadius={54}
               outerRadius={88}
-              label={({ name }) => name}
+              label={({ name }) => formatXAxisValue(name)}
               strokeWidth={0}
               paddingAngle={3}
             >
@@ -633,6 +1498,7 @@ export function DynamicChart({
               contentStyle={chartTheme.tooltipStyle}
               labelStyle={chartTheme.tooltipLabelStyle}
               itemStyle={chartTheme.tooltipItemStyle}
+              labelFormatter={(value) => formatXAxisValue(value)}
             />
           </RePieChart>
         );
@@ -656,7 +1522,7 @@ export function DynamicChart({
                 if (scatterAxisMeta?.isTemporalAxis) {
                   return formatTemporalLabel(value);
                 }
-                return String(value);
+                return formatXAxisValue(value);
               }}
             />
             <YAxis
@@ -674,7 +1540,7 @@ export function DynamicChart({
               labelFormatter={(value) => {
                 const numericValue = typeof value === "number" ? value : Number(value);
                 if (!Number.isFinite(numericValue)) {
-                  return String(value ?? "");
+                  return formatXAxisValue(value);
                 }
                 if (scatterAxisMeta?.xLabelMap?.has(numericValue)) {
                   return scatterAxisMeta.xLabelMap.get(numericValue) ?? "";
@@ -682,7 +1548,7 @@ export function DynamicChart({
                 if (scatterAxisMeta?.isTemporalAxis) {
                   return formatTemporalLabel(numericValue);
                 }
-                return String(value ?? "");
+                return formatXAxisValue(value);
               }}
             />
             {seriesMeta.map(series => (
@@ -727,12 +1593,14 @@ export function DynamicChart({
               axisLine={false}
               tickLine={false}
               width={120}
+              tickFormatter={(value) => formatXAxisValue(value)}
             />
             <Tooltip 
               cursor={{ fill: chartTheme.cursorFill }} 
               contentStyle={chartTheme.tooltipStyle}
               labelStyle={chartTheme.tooltipLabelStyle}
               itemStyle={chartTheme.tooltipItemStyle}
+              labelFormatter={(value) => formatXAxisValue(value)}
             />
             {seriesMeta.map(series => (
               <Bar
@@ -769,6 +1637,7 @@ export function DynamicChart({
               axisLine={false}
               tickLine={false}
               tickMargin={12}
+              tickFormatter={(value) => formatXAxisValue(value)}
             />
             <YAxis
               yAxisId="left"
@@ -792,6 +1661,7 @@ export function DynamicChart({
               contentStyle={chartTheme.tooltipStyle}
               labelStyle={chartTheme.tooltipLabelStyle}
               itemStyle={chartTheme.tooltipItemStyle}
+              labelFormatter={(value) => formatXAxisValue(value)}
             />
             {seriesMeta.map(series => (
               <Bar
@@ -841,24 +1711,34 @@ export function DynamicChart({
           )}
         </div>
         <div className="flex shrink-0 gap-1 text-text-subtle">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 hover:bg-surface-muted hover:text-foreground transition-colors"
-            onClick={onEdit}
-            aria-label="Edit chart"
-          >
-            <Edit2 className="h-4 w-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 text-red-400/80 hover:bg-red-500/20 hover:text-red-400 transition-colors"
-            onClick={onDelete}
-            aria-label="Delete chart"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 hover:bg-surface-muted hover:text-foreground transition-colors"
+                aria-label="Chart options"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem
+                onClick={onEdit}
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                <Edit2 className="h-4 w-4" />
+                <span>Edit</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={onDelete}
+                className="flex items-center gap-2 cursor-pointer text-red-400 focus:text-red-400"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>Delete</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </CardHeader>
 
@@ -903,9 +1783,30 @@ export function DynamicChart({
           ) : null}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2 md:gap-3">
+          <div className="flex items-center gap-1 rounded-[12px] border border-white/10 bg-white/[0.04] p-1">
+            {timePresetOptions.map((option) => {
+              const isActive = activeTimePreset === option.value || (!chart.timeRange && option.value === "auto");
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => handleTimePresetChange(option.value)}
+                  className={cn(
+                    "rounded-[10px] px-2.5 py-1 text-[11px] font-semibold transition",
+                    isActive
+                      ? "bg-foreground text-background shadow-sm"
+                      : "text-text-subtle hover:text-foreground hover:bg-white/10"
+                  )}
+                  aria-pressed={isActive}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
           <ChartControlSelect
             value={aggregationValue}
-            fallbackLabel={aggregationDisplay}
+            fallbackLabel={aggregationSummaryLabel}
             options={aggregationOptions}
             icon={<FunctionSquare className="h-4 w-4" />}
             onValueChange={handleAggregationChange}
@@ -1021,7 +1922,7 @@ function ChartControlSelect({
               "transition-colors text-foreground",
               option.value === value 
                 ? "bg-white/10" 
-                : "hover:bg-surface-elevated",
+                : "hover:bg-white/[0.06]",
               option.disabled && "opacity-50 cursor-not-allowed"
             )}
           >

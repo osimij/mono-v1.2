@@ -6,7 +6,7 @@ import { requireAuth as authRequireAuth, requireAdmin as authRequireAdmin } from
 import { sql } from "drizzle-orm";
 import { insertDatasetSchema, insertModelSchema, insertChatSessionSchema, dashboardConfigs, type ChatMessage } from "@shared/schema";
 import multer from "multer";
-import * as Papa from "papaparse";
+import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import OpenAI from "openai";
 import { generateDataInsights, generateChartRecommendations, generateModelingAdvice } from "./gemini";
@@ -94,25 +94,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isAdmin: true,
           profileImageUrl: null
         };
-        
+
+        try {
+          await storage.upsertUser({
+            id: adminUser.id,
+            email: adminUser.email,
+            firstName: adminUser.firstName,
+            lastName: adminUser.lastName,
+            profileImageUrl: adminUser.profileImageUrl,
+          });
+        } catch (dbError) {
+          console.error("Failed to ensure admin user exists in database:", dbError);
+        }
+
         const sessionId = generateSessionId();
         authSessions.set(sessionId, { user: adminUser });
-        
+
         res.json({ user: adminUser, sessionId });
         return;
       }
       
       // Find user in database by email
       const existingUser = await storage.getUserByEmail(email);
-      
+
       if (existingUser && existingUser.password) {
         // Verify password
         const isValidPassword = await bcrypt.compare(password, existingUser.password);
-        
+
         if (isValidPassword) {
           // Don't send password in response
           const { password: _, ...userWithoutPassword } = existingUser;
-          
+
           const sessionId = generateSessionId();
           authSessions.set(sessionId, { user: userWithoutPassword });
           res.json({ user: userWithoutPassword, sessionId });

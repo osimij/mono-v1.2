@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef, type CSSProperties } from "react";
+import { useEffect, useState, useMemo, useRef, type CSSProperties, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { AnalyticsLayout } from "@/components/AnalyticsLayout";
 import { PageHeader, PageSection, PageShell } from "@/components/layout/Page";
 import { TrendingUp, BarChart3, Brain, Download, Plus, X, AlertCircle, RefreshCw, Edit2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
 import {
   BarChart,
   Bar,
@@ -175,6 +176,90 @@ const describeChartConfig = (chart: ChartConfig): string => {
   return segments.join(" · ");
 };
 
+const formatDimensionValue = (value: string | number, formatters: ChartFormatters) => {
+  if (typeof value === "number") {
+    return formatters.decimal.format(value);
+  }
+  return String(value);
+};
+
+const summarizeValuePoints = (
+  chart: ChartConfig,
+  points: ChartValuePoint[],
+  formatters: ChartFormatters
+): string => {
+  const validPoints = points.filter((point) => Number.isFinite(point.value));
+  if (validPoints.length === 0) {
+    return `No data available for ${chart.title || "this chart"}.`;
+  }
+
+  const sortedByValue = [...validPoints].sort((a, b) => b.value - a.value);
+  const topPoint = sortedByValue[0];
+  const bottomPoint = sortedByValue[sortedByValue.length - 1];
+
+  const aggregationLabel =
+    chart.aggregation && chart.aggregation !== "count"
+      ? AGGREGATION_LABELS[chart.aggregation] ?? humanizeLabel(chart.aggregation)
+      : null;
+
+  const formattedMax = formatChartValue(topPoint.value, chart.aggregation, formatters);
+  const formattedMin = formatChartValue(bottomPoint.value, chart.aggregation, formatters);
+  const formattedMaxName = formatDimensionValue(topPoint.name, formatters);
+  const formattedMinName = formatDimensionValue(bottomPoint.name, formatters);
+
+  if (chart.type === "pie") {
+    const total = validPoints.reduce((sum, point) => sum + point.value, 0);
+    const percentage = total > 0 ? topPoint.value / total : 0;
+    const formattedPercent = formatters.percent.format(percentage);
+    return `Pie chart with ${validPoints.length} segments. Largest slice ${formattedMaxName} holds ${formattedPercent} (${formattedMax}). Smallest slice ${formattedMinName} is ${formattedMin}.`;
+  }
+
+  const dataLabel = chart.type === "bar" ? "categories" : "points";
+  if (aggregationLabel) {
+    return `${humanizeLabel(chart.type)} chart showing ${aggregationLabel.toLowerCase()} across ${validPoints.length} ${dataLabel}. Peak value ${formattedMax} at ${formattedMaxName}; lowest ${formattedMin} at ${formattedMinName}.`;
+  }
+
+  return `${humanizeLabel(chart.type)} chart with ${validPoints.length} ${dataLabel}. Highest value ${formattedMax} at ${formattedMaxName}; lowest ${formattedMin} at ${formattedMinName}.`;
+};
+
+const summarizeScatterPoints = (
+  chart: ChartConfig,
+  points: ScatterPoint[],
+  formatters: ChartFormatters
+): string => {
+  if (points.length === 0) {
+    return `No data available for ${chart.title || "this chart"}.`;
+  }
+
+  const xValues = points.map((point) => point.x);
+  const yValues = points.map((point) => point.y);
+  const minX = Math.min(...xValues);
+  const maxX = Math.max(...xValues);
+  const minY = Math.min(...yValues);
+  const maxY = Math.max(...yValues);
+
+  const xLabel = chart.xColumn ? humanizeLabel(chart.xColumn) : "X";
+  const yLabel = chart.yColumn ? humanizeLabel(chart.yColumn) : "Y";
+
+  return `Scatter plot comparing ${xLabel} and ${yLabel} with ${points.length} points. ${xLabel} ranges ${formatters.decimal.format(minX)} to ${formatters.decimal.format(maxX)}; ${yLabel} ranges ${formatters.decimal.format(minY)} to ${formatters.decimal.format(maxY)}.`;
+};
+
+const summarizeChartData = (
+  chart: ChartConfig,
+  data: ChartValuePoint[] | ScatterPoint[],
+  formatters: ChartFormatters
+): string => {
+  if (!data || data.length === 0) {
+    return `No data available for ${chart.title || "this chart"}.`;
+  }
+
+  if ("x" in data[0]) {
+    return summarizeScatterPoints(chart, data as ScatterPoint[], formatters);
+  }
+
+  return summarizeValuePoints(chart, data as ChartValuePoint[], formatters);
+};
+
 // Hook to detect current theme
 function useIsDark() {
   const [isDark, setIsDark] = useState(() => {
@@ -208,12 +293,12 @@ interface ChartConfig {
   xColumn?: string;
   yColumn?: string;
   aggregation?: string;
+  excludeOutliers?: boolean;
 }
 
 type DatasetRow = Record<string, unknown>;
 type ChartValuePoint = { name: string | number; value: number };
 type ScatterPoint = { x: number; y: number };
-
 export function AnalysisPage() {
   const isDark = useIsDark();
   const { toast } = useToast();
@@ -230,7 +315,8 @@ export function AnalysisPage() {
   const [newChart, setNewChart] = useState<Partial<ChartConfig>>({
     type: "bar",
     title: "",
-    aggregation: "count"
+    aggregation: "count",
+    excludeOutliers: false
   });
   const chartFormatters = useMemo(() => {
     let locale: string | undefined;
@@ -359,34 +445,104 @@ export function AnalysisPage() {
 
   const { data: selectedDatasetData, isLoading: loadingSelectedDataset, error: selectedDatasetError, refetch: refetchSelectedDataset } = useQuery<Dataset>({
     queryKey: ["dataset", selectedDatasetId],
-    queryFn: () => api.datasets.getById(selectedDatasetId!, { limit: 750 }),
+    // Request the entire dataset so aggregations reflect all rows, not a capped sample.
+    queryFn: () => api.datasets.getById(selectedDatasetId!),
     enabled: selectedDatasetId !== null,
     retry: 2,
     retryDelay: 1000,
   });
 
-  const getNumericalColumns = () => {
-    if (!selectedDatasetData) return [];
-    const rows = selectedDatasetData.data as DatasetRow[] | undefined;
-    if (!rows || rows.length === 0) return [];
-    const firstRow = rows[0];
+  const columnTypeMap = useMemo(() => {
+    if (!selectedDatasetData?.columns || !Array.isArray(selectedDatasetData.data)) {
+      return {} as Record<string, "numeric" | "boolean" | "categorical">;
+    }
 
-    return selectedDatasetData.columns.filter((col) => {
-      const value = firstRow[col];
-      return typeof value === "number" && !Number.isNaN(value);
+    const rows = selectedDatasetData.data as DatasetRow[];
+    const sampleSize = Math.min(rows.length, 200);
+    const inferred: Record<string, "numeric" | "boolean" | "categorical"> = {};
+
+    selectedDatasetData.columns.forEach((column) => {
+      let numericHits = 0;
+      let booleanHits = 0;
+      let stringHits = 0;
+      let total = 0;
+
+      for (let index = 0; index < sampleSize; index += 1) {
+        const row = rows[index];
+        if (!row) continue;
+        const value = row[column];
+        if (value == null || value === "") continue;
+
+        if (typeof value === "number" && Number.isFinite(value)) {
+          numericHits += 1;
+          total += 1;
+          continue;
+        }
+
+        if (typeof value === "boolean") {
+          booleanHits += 1;
+          total += 1;
+          continue;
+        }
+
+        if (typeof value === "string") {
+          const trimmed = value.trim();
+          if (trimmed.length === 0) {
+            continue;
+          }
+
+          const normalized = trimmed.replace(/,/g, "");
+          const numericCandidate = Number(normalized);
+          if (normalized.length > 0 && Number.isFinite(numericCandidate)) {
+            numericHits += 1;
+            total += 1;
+            continue;
+          }
+
+          const lower = trimmed.toLowerCase();
+          if (lower === "true" || lower === "false") {
+            booleanHits += 1;
+            total += 1;
+            continue;
+          }
+
+          stringHits += 1;
+          total += 1;
+          continue;
+        }
+
+        stringHits += 1;
+        total += 1;
+      }
+
+      if (total === 0) {
+        inferred[column] = "categorical";
+        return;
+      }
+
+      const numericRatio = numericHits / total;
+      const booleanRatio = booleanHits / total;
+
+      if (numericRatio >= 0.6) {
+        inferred[column] = "numeric";
+      } else if (booleanRatio >= 0.6) {
+        inferred[column] = "boolean";
+      } else {
+        inferred[column] = "categorical";
+      }
     });
+
+    return inferred;
+  }, [selectedDatasetData]);
+
+  const getNumericalColumns = () => {
+    if (!selectedDatasetData?.columns) return [];
+    return selectedDatasetData.columns.filter((column) => columnTypeMap[column] === "numeric");
   };
 
   const getCategoricalColumns = () => {
-    if (!selectedDatasetData) return [];
-    const rows = selectedDatasetData.data as DatasetRow[] | undefined;
-    if (!rows || rows.length === 0) return [];
-    const firstRow = rows[0];
-
-    return selectedDatasetData.columns.filter((col) => {
-      const value = firstRow[col];
-      return typeof value === "string" || typeof value === "boolean";
-    });
+    if (!selectedDatasetData?.columns) return [];
+    return selectedDatasetData.columns.filter((column) => columnTypeMap[column] !== "numeric");
   };
 
   const getAvailableColumns = (chartType: ChartType, axis: "x" | "y") => {
@@ -406,6 +562,11 @@ export function AnalysisPage() {
       default:
         return [];
     }
+  };
+
+  const isNumericColumn = (column?: string) => {
+    if (!column) return false;
+    return columnTypeMap[column] === "numeric";
   };
 
   const processChartData = (chart: ChartConfig): ChartValuePoint[] | ScatterPoint[] => {
@@ -451,14 +612,15 @@ export function AnalysisPage() {
     }
 
     if (chart.xColumn && getCategoricalColumns().includes(chart.xColumn)) {
-      const grouped: Record<string, { name: string; values: number[] }> = {};
+      type GroupAccumulator = { name: string; values: number[]; firstIndex: number };
+      const grouped: Record<string, GroupAccumulator> = {};
 
-      data.forEach((row) => {
+      data.forEach((row, rowIndex) => {
         const keyRaw = row[chart.xColumn as string];
         const key = keyRaw == null || keyRaw === "" ? "Unknown" : String(keyRaw);
 
         if (!grouped[key]) {
-          grouped[key] = { name: key, values: [] };
+          grouped[key] = { name: key, values: [], firstIndex: rowIndex };
         }
 
         if (chart.yColumn) {
@@ -472,49 +634,56 @@ export function AnalysisPage() {
       const MAX_GROUPS = chart.type === "bar" ? 18 : 14;
 
       let aggregated = Object.values(grouped)
-        .map<ChartValuePoint>((group) => {
+        .map((group) => {
           if (chart.yColumn && group.values.length > 0) {
             switch (chart.aggregation) {
               case "sum":
                 return {
                   name: group.name,
-                  value: group.values.reduce((total, value) => total + value, 0)
+                  value: group.values.reduce((total, value) => total + value, 0),
+                  firstIndex: group.firstIndex
                 };
               case "avg":
                 return {
                   name: group.name,
                   value:
-                    group.values.reduce((total, value) => total + value, 0) / group.values.length
+                    group.values.reduce((total, value) => total + value, 0) / group.values.length,
+                  firstIndex: group.firstIndex
                 };
               case "max":
-                return { name: group.name, value: Math.max(...group.values) };
+                return { name: group.name, value: Math.max(...group.values), firstIndex: group.firstIndex };
               case "min":
-                return { name: group.name, value: Math.min(...group.values) };
+                return { name: group.name, value: Math.min(...group.values), firstIndex: group.firstIndex };
               default:
-                return { name: group.name, value: group.values.length };
+                return { name: group.name, value: group.values.length, firstIndex: group.firstIndex };
             }
           }
 
-          return { name: group.name, value: group.values.length };
+          return { name: group.name, value: group.values.length, firstIndex: group.firstIndex };
         })
-        .filter((point) => Number.isFinite(point.value) && point.value >= 0)
-        .sort((a, b) => b.value - a.value);
+        .filter((point) => Number.isFinite(point.value) && point.value >= 0);
 
-      if (aggregated.length > MAX_GROUPS) {
+      if (chart.type === "bar") {
+        aggregated.sort((a, b) => b.value - a.value);
+      } else {
+        aggregated.sort((a, b) => a.firstIndex - b.firstIndex);
+      }
+
+      if (chart.type === "bar" && aggregated.length > MAX_GROUPS) {
         const visible = aggregated.slice(0, MAX_GROUPS - 1);
         const remainder = aggregated.slice(MAX_GROUPS - 1);
         const otherTotal = remainder.reduce((sum, item) => sum + item.value, 0);
         if (otherTotal > 0) {
-          visible.push({ name: "Other", value: otherTotal });
+          visible.push({ name: "Other", value: otherTotal, firstIndex: Number.MAX_SAFE_INTEGER });
         }
         aggregated = visible;
       }
 
-      return aggregated;
+      return aggregated.map<ChartValuePoint>(({ name, value }) => ({ name, value }));
     }
 
     if (chart.xColumn && getNumericalColumns().includes(chart.xColumn)) {
-      let processedData = data.slice(0, 100).map<ChartValuePoint>((row) => {
+      let processedData = data.slice(0, 200).map<ChartValuePoint>((row) => {
         const nameValue = Number(row[chart.xColumn as string]);
         const yValue = chart.yColumn ? Number(row[chart.yColumn as string]) : 1;
         return { name: nameValue, value: yValue };
@@ -526,7 +695,7 @@ export function AnalysisPage() {
 
       if (chart.yColumn && chart.yColumn.toLowerCase().includes("age")) {
         processedData = processedData.filter((point) => point.value >= 0 && point.value <= 120);
-      } else if (chart.yColumn) {
+      } else if (chart.yColumn && chart.excludeOutliers) {
         processedData = filterOutliers(processedData);
       }
 
@@ -545,7 +714,7 @@ export function AnalysisPage() {
 
     if (chart.yColumn && chart.yColumn.toLowerCase().includes("age")) {
       finalData = finalData.filter((point) => point.value >= 0 && point.value <= 120);
-    } else if (chart.yColumn) {
+    } else if (chart.yColumn && chart.excludeOutliers) {
       finalData = filterOutliers(finalData);
     }
 
@@ -566,16 +735,48 @@ export function AnalysisPage() {
     return data.filter((d) => d.value >= lowerBound && d.value <= upperBound);
   };
 
-  const renderChart = (chart: ChartConfig) => {
+  const renderChart = (
+    chart: ChartConfig,
+    chartData: ChartValuePoint[] | ScatterPoint[],
+    {
+      summaryId,
+      summaryText,
+      titleId,
+      descriptionId
+    }: { summaryId: string; summaryText: string; titleId: string; descriptionId: string }
+  ) => {
+    const normalizedSummary =
+      summaryText && summaryText.trim().length > 0
+        ? summaryText.trim()
+        : `Data summary not available for ${chart.title || "this chart"}.`;
+    const describedBy = [descriptionId, normalizedSummary ? summaryId : null]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+
+    const ChartWrapper = ({ children }: { children: ReactNode }) => (
+      <div
+        role="img"
+        aria-labelledby={titleId}
+        aria-describedby={describedBy || undefined}
+      >
+        <p id={summaryId} className="sr-only">
+          {normalizedSummary}
+        </p>
+        {children}
+      </div>
+    );
+
     try {
-      const chartData = processChartData(chart);
-      if (!hasMeaningfulChartData(chartData, chart.type)) {
+      if (!hasMeaningfulChartData(chartData as ChartValuePoint[] | ScatterPoint[], chart.type)) {
         const dimensionHint = chart.xColumn ? `“${chart.xColumn}”` : "this configuration";
         return (
-          <ChartEmptyState
-            message="Not enough data to render this chart yet."
-            helperText={`Try choosing different columns or adjusting your filters for ${dimensionHint}.`}
-          />
+          <ChartWrapper>
+            <ChartEmptyState
+              message="Not enough data to render this chart yet."
+              helperText={`Try choosing different columns or adjusting your filters for ${dimensionHint}.`}
+            />
+          </ChartWrapper>
         );
       }
 
@@ -614,10 +815,12 @@ export function AnalysisPage() {
       const yAxisLabel = getYAxisLabel();
       const chartMargin = { top: 12, right: 16, bottom: 8, left: 12 };
 
+      let visualization: ReactNode;
+
       switch (chart.type) {
         case "bar": {
           const barData = chartData as ChartValuePoint[];
-          return (
+          visualization = (
             <ResponsiveContainer width="100%" height={DEFAULT_CHART_HEIGHT}>
               <BarChart data={barData} margin={chartMargin}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
@@ -659,19 +862,32 @@ export function AnalysisPage() {
               </BarChart>
             </ResponsiveContainer>
           );
+          break;
         }
         case "line": {
           const lineData = chartData as ChartValuePoint[];
-          return (
+          const isNumericXAxis = isNumericColumn(chart.xColumn);
+          const formatXAxisValue = (raw: string | number) => {
+            if (!isNumericXAxis) return String(raw);
+            const numeric = Number(raw);
+            return Number.isFinite(numeric) ? chartFormatters.decimal.format(numeric) : String(raw);
+          };
+          visualization = (
             <ResponsiveContainer width="100%" height={DEFAULT_CHART_HEIGHT}>
               <LineChart data={lineData} margin={chartMargin}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                 <XAxis
                   dataKey="name"
+                  type={isNumericXAxis ? "number" : "category"}
+                  domain={isNumericXAxis ? ["auto", "auto"] : undefined}
                   tick={{ fill: axisColor, fontSize: 12, fontWeight: 500 }}
                   axisLine={{ stroke: gridColor }}
                   tickLine={false}
                   height={36}
+                  scale={isNumericXAxis ? "linear" : "auto"}
+                  allowDecimals={isNumericXAxis}
+                  allowDuplicatedCategory={!isNumericXAxis}
+                  tickFormatter={formatXAxisValue}
                 />
                 <YAxis
                   label={{ value: getYAxisLabel(), angle: -90, position: "insideLeft", fill: axisColor }}
@@ -688,7 +904,7 @@ export function AnalysisPage() {
                     formatChartValue(value, chart.aggregation, chartFormatters),
                     yAxisLabel
                   ]}
-                  labelFormatter={(label) => String(label)}
+                  labelFormatter={(label) => formatXAxisValue(label as string | number)}
                   contentStyle={tooltipStyle}
                   labelStyle={tooltipLabelStyle}
                   itemStyle={tooltipItemStyle}
@@ -706,11 +922,18 @@ export function AnalysisPage() {
               </LineChart>
             </ResponsiveContainer>
           );
+          break;
         }
         case "area": {
           const areaData = chartData as ChartValuePoint[];
+          const isNumericXAxis = isNumericColumn(chart.xColumn);
+          const formatXAxisValue = (raw: string | number) => {
+            if (!isNumericXAxis) return String(raw);
+            const numeric = Number(raw);
+            return Number.isFinite(numeric) ? chartFormatters.decimal.format(numeric) : String(raw);
+          };
           const gradientId = `area-gradient-${chart.id}`;
-          return (
+          visualization = (
             <ResponsiveContainer width="100%" height={DEFAULT_CHART_HEIGHT}>
               <AreaChart data={areaData} margin={chartMargin}>
                 <defs>
@@ -722,10 +945,16 @@ export function AnalysisPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                 <XAxis
                   dataKey="name"
+                  type={isNumericXAxis ? "number" : "category"}
+                  domain={isNumericXAxis ? ["auto", "auto"] : undefined}
                   tick={{ fill: axisColor, fontSize: 12, fontWeight: 500 }}
                   axisLine={{ stroke: gridColor }}
                   tickLine={false}
                   height={36}
+                  scale={isNumericXAxis ? "linear" : "auto"}
+                  allowDecimals={isNumericXAxis}
+                  allowDuplicatedCategory={!isNumericXAxis}
+                  tickFormatter={formatXAxisValue}
                 />
                 <YAxis
                   label={{ value: getYAxisLabel(), angle: -90, position: "insideLeft", fill: axisColor }}
@@ -742,7 +971,7 @@ export function AnalysisPage() {
                     formatChartValue(value, chart.aggregation, chartFormatters),
                     yAxisLabel
                   ]}
-                  labelFormatter={(label) => String(label)}
+                  labelFormatter={(label) => formatXAxisValue(label as string | number)}
                   contentStyle={tooltipStyle}
                   labelStyle={tooltipLabelStyle}
                   itemStyle={tooltipItemStyle}
@@ -759,6 +988,7 @@ export function AnalysisPage() {
               </AreaChart>
             </ResponsiveContainer>
           );
+          break;
         }
         case "pie": {
           const pieData = chartData as ChartValuePoint[];
@@ -766,7 +996,7 @@ export function AnalysisPage() {
             const value = Number(entry.value);
             return Number.isFinite(value) ? sum + value : sum;
           }, 0);
-          return (
+          visualization = (
             <div className="flex flex-col gap-4">
               <ResponsiveContainer width="100%" height={DEFAULT_CHART_HEIGHT}>
                 <RechartsPieChart>
@@ -819,10 +1049,11 @@ export function AnalysisPage() {
               />
             </div>
           );
+          break;
         }
         case "scatter": {
           const scatterData = chartData as ScatterPoint[];
-          return (
+          visualization = (
             <ResponsiveContainer width="100%" height={DEFAULT_CHART_HEIGHT}>
               <ScatterChart margin={{ top: 16, right: 24, bottom: 16, left: 16 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
@@ -866,18 +1097,23 @@ export function AnalysisPage() {
               </ScatterChart>
             </ResponsiveContainer>
           );
+          break;
         }
         default:
-          return <p className="text-sm text-text-muted">Unsupported chart type.</p>;
+          visualization = <p className="text-sm text-text-muted">Unsupported chart type.</p>;
       }
+
+      return <ChartWrapper>{visualization}</ChartWrapper>;
     } catch (error) {
       console.error("Chart rendering failed", error);
       return (
-        <div className="flex h-[300px] items-center justify-center rounded-lg border border-dashed border-border/60 bg-surface-muted/40 px-6">
-          <p className="text-sm text-text-muted">
-            Unable to render this chart. Adjust the configuration and try again.
-          </p>
-        </div>
+        <ChartWrapper>
+          <div className="flex h-[300px] items-center justify-center rounded-lg border border-dashed border-border/60 bg-surface-muted/40 px-6">
+            <p className="text-sm text-text-muted">
+              Unable to render this chart. Adjust the configuration and try again.
+            </p>
+          </div>
+        </ChartWrapper>
       );
     }
   };
@@ -1013,11 +1249,12 @@ export function AnalysisPage() {
       description: newChart.description?.trim(),
       xColumn: newChart.xColumn,
       yColumn: newChart.yColumn,
-      aggregation: newChart.aggregation || "count"
+      aggregation: newChart.aggregation || "count",
+      excludeOutliers: Boolean(newChart.excludeOutliers)
     };
 
     setCharts((prev) => [...prev, chart]);
-    setNewChart({ type: "bar", title: "", aggregation: "count" });
+    setNewChart({ type: "bar", title: "", aggregation: "count", excludeOutliers: false });
 
     toast({
       title: "Chart created",
@@ -1546,6 +1783,30 @@ export function AnalysisPage() {
                       </div>
                     )}
 
+                  {newChart.type !== "pie" && newChart.yColumn ? (
+                    <div className="flex items-start justify-between gap-4 rounded-lg border border-dashed border-border/40 bg-surface-muted/40 px-3 py-2.5">
+                      <div className="space-y-1">
+                        <Label
+                          htmlFor="new-chart-outlier-toggle"
+                          className="text-xs font-semibold text-text-soft"
+                        >
+                          Exclude extreme values
+                        </Label>
+                        <p id="new-chart-outlier-helper" className="text-[11px] text-text-muted">
+                          Toggle on to hide points beyond the typical range (2× IQR) for this metric.
+                        </p>
+                      </div>
+                      <Switch
+                        id="new-chart-outlier-toggle"
+                        checked={Boolean(newChart.excludeOutliers)}
+                        onCheckedChange={(checked) =>
+                          setNewChart((prev) => ({ ...prev, excludeOutliers: checked }))
+                        }
+                        aria-describedby="new-chart-outlier-helper"
+                      />
+                    </div>
+                  ) : null}
+
                   <div className="flex gap-2">
                     <Button onClick={addChart}>
                       <Plus className="mr-2 h-4 w-4" />
@@ -1560,6 +1821,12 @@ export function AnalysisPage() {
                   {charts.map((chart) => {
                     const chartTitleId = `chart-${chart.id}-title`;
                     const chartDescriptionId = `chart-${chart.id}-description`;
+                    const chartData = processChartData(chart);
+                    const summaryId = `chart-${chart.id}-summary`;
+                    const hasRenderableData = hasMeaningfulChartData(chartData, chart.type);
+                    const summaryText = hasRenderableData
+                      ? summarizeChartData(chart, chartData, chartFormatters)
+                      : `Not enough data to render ${chart.title || "this chart"} with the current configuration.`;
                     const description = chart.description?.trim();
                     const resolvedDescription =
                       description && description.length > 0
@@ -1585,6 +1852,12 @@ export function AnalysisPage() {
                         ? {
                             label: "Aggregation",
                             value: aggregatorLabel
+                          }
+                        : null,
+                      chart.excludeOutliers
+                        ? {
+                            label: "Data quality",
+                            value: "Extreme values hidden"
                           }
                         : null
                     ].filter(Boolean) as Array<{ label: string; value: string }>;
@@ -1646,7 +1919,38 @@ export function AnalysisPage() {
                               ))}
                             </div>
                           ) : null}
-                          {renderChart(chart)}
+                          {chart.type !== "pie" && chart.yColumn ? (
+                            <div
+                              className="flex items-start justify-between gap-4 rounded-lg border border-border/40 bg-surface-muted/50 px-3 py-2.5"
+                              aria-live="polite"
+                            >
+                              <div className="space-y-1">
+                                <p className="text-xs font-semibold text-text-soft">
+                                  Exclude extreme values
+                                </p>
+                                <p
+                                  id={`outlier-helper-${chart.id}`}
+                                  className="text-[11px] text-text-muted"
+                                >
+                                  Remove points beyond the usual range (2× IQR) when plotting this metric.
+                                </p>
+                              </div>
+                              <Switch
+                                id={`outlier-toggle-${chart.id}`}
+                                checked={Boolean(chart.excludeOutliers)}
+                                onCheckedChange={(checked) =>
+                                  updateChart(chart.id, { excludeOutliers: checked })
+                                }
+                                aria-describedby={`outlier-helper-${chart.id}`}
+                              />
+                            </div>
+                          ) : null}
+                          {renderChart(chart, chartData, {
+                            summaryId,
+                            summaryText,
+                            titleId: chartTitleId,
+                            descriptionId: chartDescriptionId
+                          })}
                         </CardContent>
                       </Card>
                     );
@@ -1816,7 +2120,31 @@ export function AnalysisPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                )}
+              )}
+
+              {editingDraft.type !== "pie" && editingDraft.yColumn ? (
+                <div className="flex items-start justify-between gap-4 rounded-lg border border-border/40 bg-surface-muted/50 px-3 py-2.5">
+                  <div className="space-y-1">
+                    <Label htmlFor={`edit-outlier-toggle-${editingDraft.id}`} className="text-xs font-semibold text-text-soft">
+                      Exclude extreme values
+                    </Label>
+                    <p
+                      id={`edit-outlier-helper-${editingDraft.id}`}
+                      className="text-[11px] text-text-muted"
+                    >
+                      Hide points outside the typical range (2× IQR) before rendering this chart.
+                    </p>
+                  </div>
+                  <Switch
+                    id={`edit-outlier-toggle-${editingDraft.id}`}
+                    checked={Boolean(editingDraft.excludeOutliers)}
+                    onCheckedChange={(checked) =>
+                      setEditingDraft((prev) => (prev ? { ...prev, excludeOutliers: checked } : prev))
+                    }
+                    aria-describedby={`edit-outlier-helper-${editingDraft.id}`}
+                  />
+                </div>
+              ) : null}
 
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={closeEditDialog}>
@@ -1833,7 +2161,7 @@ export function AnalysisPage() {
 }
 
 interface LabelTextProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 function LabelText({ children }: LabelTextProps) {
