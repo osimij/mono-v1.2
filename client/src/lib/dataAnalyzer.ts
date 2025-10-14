@@ -193,8 +193,7 @@ export function prepareChartData(
   data: any[],
   xAxis: string,
   yAxis: string,
-  aggregation?: 'sum' | 'average' | 'count' | 'max' | 'min',
-  groupBy?: string
+  aggregation?: 'sum' | 'average' | 'count' | 'max' | 'min'
 ): any[] {
   if (!aggregation) {
     // No aggregation - return data as is
@@ -204,11 +203,11 @@ export function prepareChartData(
     }));
   }
 
-  // Group data by xAxis and optionally by groupBy
+  // Group data by xAxis value
   const groups = new Map<string, any[]>();
   
   data.forEach(row => {
-    const key = groupBy ? `${row[xAxis]}_${row[groupBy]}` : String(row[xAxis]);
+    const key = String(row[xAxis]);
     if (!groups.has(key)) {
       groups.set(key, []);
     }
@@ -242,8 +241,7 @@ export function prepareChartData(
     
     result.push({
       [xAxis]: xValue,
-      [yAxis]: yValue,
-      ...(groupBy ? { [groupBy]: rows[0][groupBy] } : {})
+      [yAxis]: yValue
     });
   });
 
@@ -455,4 +453,3 @@ export function calculatePearsonCorrelation(values: Array<{ a: number; b: number
   if (denominator === 0) return 0;
   return numerator / denominator;
 }
-

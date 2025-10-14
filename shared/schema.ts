@@ -189,7 +189,6 @@ export interface DashboardChart {
   xAxis: string;
   yAxis: string | string[]; // Support single or multiple Y-axis columns
   aggregation?: 'sum' | 'average' | 'count' | 'max' | 'min';
-  groupBy?: string;
   filterColumn?: string;
   filterValue?: string;
 }

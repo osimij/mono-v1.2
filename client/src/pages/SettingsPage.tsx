@@ -7,10 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PageHeader, PageSection, PageShell } from "@/components/layout/Page";
-import { useTheme } from "@/hooks/use-theme";
 import {
-  Moon,
-  Sun,
   Trash2,
   Download,
   Save,
@@ -24,7 +21,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 
 export function SettingsPage() {
-  const { theme, setTheme } = useTheme();
   const { toast } = useToast();
 
   const [autoSaveModels, setAutoSaveModels] = useState(true);
@@ -72,23 +68,10 @@ export function SettingsPage() {
     {
       title: "Appearance",
       icon: SettingsIcon,
-      description: "Customize theme preferences for Mono.",
+      description: "Mono automatically follows your system appearance.",
       content: (
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-2">
-            <Label className="text-base font-medium text-text-primary">Dark mode</Label>
-            <p className="text-sm text-text-muted">
-              Toggle between light and dark theme presets.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Sun className="h-4 w-4 text-text-subtle" />
-            <Switch
-              checked={theme === "dark"}
-              onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
-            />
-            <Moon className="h-4 w-4 text-text-subtle" />
-          </div>
+        <div className="rounded-lg border border-border/60 bg-surface-muted/60 p-4 text-sm text-text-muted">
+          Mono mirrors your device’s light or dark mode automatically. Change your system preference to switch themes.
         </div>
       )
     },

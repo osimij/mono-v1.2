@@ -198,10 +198,10 @@ export function AnalysisOverviewPage() {
                   </Button>
                 </div>
               }
-              contentClassName="gap-10"
+              contentClassName="gap-5"
             >
               {metrics.length > 0 ? (
-                <div className="grid auto-rows-fr gap-4 justify-start [grid-template-columns:repeat(auto-fit,minmax(220px,max-content))]">
+                <div className="grid auto-rows-fr gap-5 justify-start [grid-template-columns:repeat(auto-fit,minmax(220px,max-content))]">
                   {metrics.map((metric) => (
                     <DynamicMetricCard
                       key={metric.id}
@@ -215,7 +215,7 @@ export function AnalysisOverviewPage() {
               ) : null}
 
               {charts.length > 0 ? (
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+                <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
                   {charts.map((chart) => (
                     <div
                       key={chart.id}

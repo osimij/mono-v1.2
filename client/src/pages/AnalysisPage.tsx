@@ -222,7 +222,8 @@ export function AnalysisPage() {
   const [selectedDataset, setSelectedDataset] = useState<string>("none");
   const [charts, setCharts] = useState<ChartConfig[]>([]);
   const [chartsLoadedForDataset, setChartsLoadedForDataset] = useState<number | null>(null);
-  const [editingChart, setEditingChart] = useState<ChartConfig | null>(null);
+  const [editingChartId, setEditingChartId] = useState<string | null>(null);
+  const [editingDraft, setEditingDraft] = useState<ChartConfig | null>(null);
   const [showInsights, setShowInsights] = useState(false);
   const [smartInsightsPage, setSmartInsightsPage] = useState(0);
   const [persistedInsights, setPersistedInsights] = useState<string[]>([]);
@@ -1024,13 +1025,68 @@ export function AnalysisPage() {
     });
   };
 
+  const buildEditingDraft = (chart: ChartConfig): ChartConfig => {
+    const shouldDefaultAggregation =
+      !chart.aggregation &&
+      chart.type !== "pie" &&
+      chart.xColumn &&
+      getCategoricalColumns().includes(chart.xColumn);
+
+    return {
+      ...chart,
+      aggregation: shouldDefaultAggregation ? "count" : chart.aggregation
+    };
+  };
+
+  const startEditingChart = (chartId: string) => {
+    const target = charts.find((chart) => chart.id === chartId);
+    if (!target) return;
+
+    setEditingChartId(chartId);
+    setEditingDraft(buildEditingDraft(target));
+  };
+
+  const closeEditDialog = () => {
+    setEditingDraft(null);
+    setEditingChartId(null);
+  };
+
+  const editingXOptions = useMemo<string[]>(() => {
+    if (!editingDraft?.type) return [];
+    const available = getAvailableColumns(editingDraft.type, "x");
+    if (editingDraft.xColumn && !available.includes(editingDraft.xColumn)) {
+      const column = editingDraft.xColumn;
+      return [column, ...available];
+    }
+    return [...available];
+  }, [editingDraft?.type, editingDraft?.xColumn, selectedDatasetData]);
+
+  const editingYOptions = useMemo<string[]>(() => {
+    if (!editingDraft?.type || editingDraft.type === "pie") return [];
+    const available = getAvailableColumns(editingDraft.type, "y");
+    if (editingDraft.yColumn && !available.includes(editingDraft.yColumn)) {
+      const column = editingDraft.yColumn;
+      return [column, ...available];
+    }
+    return [...available];
+  }, [editingDraft?.type, editingDraft?.yColumn, selectedDatasetData]);
+
+  useEffect(() => {
+    if (!editingChartId) return;
+    const current = charts.find((chart) => chart.id === editingChartId);
+    if (!current) {
+      setEditingChartId(null);
+      setEditingDraft(null);
+    }
+  }, [charts, editingChartId]);
+
   const updateChart = (chartId: string, updates: Partial<ChartConfig>) => {
     setCharts((prev) => prev.map((chart) => (chart.id === chartId ? { ...chart, ...updates } : chart)));
   };
 
   const handleEditSubmit = () => {
-    if (!editingChart) return;
-    const validationResult = validateChartConfig(editingChart, chartAnalysis);
+    if (!editingDraft) return;
+    const validationResult = validateChartConfig(editingDraft, chartAnalysis);
     if (!validationResult.isValid) {
       toast({
         title: validationResult.title,
@@ -1039,8 +1095,8 @@ export function AnalysisPage() {
       });
       return;
     }
-    updateChart(editingChart.id, editingChart);
-    setEditingChart(null);
+    updateChart(editingDraft.id, editingDraft);
+    closeEditDialog();
     toast({
       title: "Chart updated",
       description: "Your changes have been saved."
@@ -1560,7 +1616,7 @@ export function AnalysisPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => setEditingChart(chart)}
+                                onClick={() => startEditingChart(chart.id)}
                                 aria-label={`Edit ${chart.title}`}
                               >
                                 <Edit2 className="h-4 w-4" />
@@ -1627,21 +1683,21 @@ export function AnalysisPage() {
           )}
         </PageSection>
       </PageShell>
-      <Dialog open={!!editingChart} onOpenChange={(open) => !open && setEditingChart(null)}>
+      <Dialog open={!!editingDraft} onOpenChange={(open) => { if (!open) closeEditDialog(); }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit chart</DialogTitle>
           </DialogHeader>
-          {editingChart && (
-            <div className="space-y-4">
+          {editingDraft && (
+            <div key={editingDraft.id} className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="edit-title">Title</Label>
                   <Input
                     id="edit-title"
-                    value={editingChart.title}
+                    value={editingDraft.title}
                     onChange={(event) =>
-                      setEditingChart((prev) =>
+                      setEditingDraft((prev) =>
                         prev ? { ...prev, title: event.target.value } : prev
                       )
                     }
@@ -1651,9 +1707,9 @@ export function AnalysisPage() {
                   <Label htmlFor="edit-description">Description (optional)</Label>
                   <Textarea
                     id="edit-description"
-                    value={editingChart.description ?? ""}
+                    value={editingDraft.description ?? ""}
                     onChange={(event) =>
-                      setEditingChart((prev) =>
+                      setEditingDraft((prev) =>
                         prev ? { ...prev, description: event.target.value } : prev
                       )
                     }
@@ -1666,11 +1722,16 @@ export function AnalysisPage() {
                 <div className="space-y-2">
                   <Label>Chart type</Label>
                   <Select
-                    value={editingChart.type}
+                    value={editingDraft.type}
                     onValueChange={(value: ChartType) =>
-                      setEditingChart((prev) =>
-                        prev ? { ...prev, type: value, xColumn: undefined, yColumn: undefined } : prev
-                      )
+                      setEditingDraft((prev) => {
+                        if (!prev) return prev;
+                        // Only reset columns if the type actually changed
+                        if (prev.type !== value) {
+                          return { ...prev, type: value, xColumn: undefined, yColumn: undefined };
+                        }
+                        return prev;
+                      })
                     }
                   >
                     <SelectTrigger>
@@ -1688,59 +1749,57 @@ export function AnalysisPage() {
                 <div className="space-y-2">
                   <Label>X-axis</Label>
                   <Select
-                    value={editingChart.xColumn || ""}
+                    value={editingDraft.xColumn || ""}
                     onValueChange={(value) =>
-                      setEditingChart((prev) => (prev ? { ...prev, xColumn: value } : prev))
+                      setEditingDraft((prev) => (prev ? { ...prev, xColumn: value } : prev))
                     }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select column" />
                     </SelectTrigger>
                     <SelectContent>
-                      {editingChart.type &&
-                        getAvailableColumns(editingChart.type, "x").map((col) => (
-                          <SelectItem key={col} value={col}>
-                            {col}
-                          </SelectItem>
-                        ))}
+                      {editingXOptions.map((col) => (
+                        <SelectItem key={col} value={col}>
+                          {col}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
-                {editingChart.type !== "pie" && (
+                {editingDraft.type !== "pie" && (
                   <div className="space-y-2">
                     <Label>Y-axis</Label>
                     <Select
-                      value={editingChart.yColumn || ""}
+                      value={editingDraft.yColumn || ""}
                       onValueChange={(value) =>
-                        setEditingChart((prev) => (prev ? { ...prev, yColumn: value } : prev))
+                        setEditingDraft((prev) => (prev ? { ...prev, yColumn: value } : prev))
                       }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select column" />
                       </SelectTrigger>
                       <SelectContent>
-                        {editingChart.type &&
-                          getAvailableColumns(editingChart.type, "y").map((col) => (
-                            <SelectItem key={col} value={col}>
-                              {col}
-                            </SelectItem>
-                          ))}
+                        {editingYOptions.map((col) => (
+                          <SelectItem key={col} value={col}>
+                            {col}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                 )}
               </div>
 
-              {editingChart.type &&
-                editingChart.xColumn &&
-                getCategoricalColumns().includes(editingChart.xColumn) &&
-                editingChart.yColumn && (
+              {editingDraft.type &&
+                editingDraft.xColumn &&
+                getCategoricalColumns().includes(editingDraft.xColumn) &&
+                editingDraft.yColumn && (
                   <div className="space-y-2">
                     <Label>Aggregation</Label>
                     <Select
-                      value={editingChart.aggregation || "count"}
+                      value={editingDraft.aggregation || "count"}
                       onValueChange={(value) =>
-                        setEditingChart((prev) =>
+                        setEditingDraft((prev) =>
                           prev ? { ...prev, aggregation: value } : prev
                         )
                       }
@@ -1760,7 +1819,7 @@ export function AnalysisPage() {
                 )}
 
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setEditingChart(null)}>
+                <Button variant="outline" onClick={closeEditDialog}>
                   Cancel
                 </Button>
                 <Button onClick={handleEditSubmit}>Save changes</Button>

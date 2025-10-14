@@ -25,7 +25,7 @@ export function DynamicMetricCard({ metric, data, onEdit, onDelete: _onDelete }:
     <button
       type="button"
       onClick={onEdit}
-      className="group relative flex h-[108px] w-full max-w-[220px] flex-col cursor-pointer select-none rounded-lg bg-surface-elevated p-4 pe-3 shadow-xs border border-border/40 transition-all duration-200 [@media(hover:hover)]:hover:-translate-y-0.5 [@media(hover:hover)]:hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+      className="group relative flex h-[108px] w-full max-w-[220px] flex-col cursor-pointer select-none rounded-xl bg-surface-muted p-4 pe-3 shadow-xs border border-border transition-all duration-200 [@media(hover:hover)]:hover:-translate-y-0.5 [@media(hover:hover)]:hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
     >
       <div className="mb-2 flex h-4 items-center justify-between gap-1 text-left text-xs font-medium text-text-muted sm:text-sm md:text-base">
         <span className="truncate">{metric.title}</span>

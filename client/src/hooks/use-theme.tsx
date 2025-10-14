@@ -24,16 +24,10 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 export function ThemeProvider({
   children,
   defaultTheme = "system",
-  storageKey = "mono-ai-theme",
+  storageKey: _storageKey = "mono-ai-theme",
   ...props
 }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === "undefined") {
-      return defaultTheme;
-    }
-    const storedTheme = window.localStorage.getItem(storageKey) as Theme | null;
-    return storedTheme ?? defaultTheme;
-  });
+  const [theme, setThemeState] = useState<Theme>(() => defaultTheme);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -74,14 +68,11 @@ export function ThemeProvider({
   const value = useMemo(
     () => ({
       theme,
-      setTheme: (theme: Theme) => {
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem(storageKey, theme);
-        }
-        setThemeState(theme);
+      setTheme: (nextTheme: Theme) => {
+        setThemeState(nextTheme);
       },
     }),
-    [storageKey, theme]
+    [theme]
   );
 
   return (

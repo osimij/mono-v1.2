@@ -32,10 +32,8 @@ import {
   Check,
   ChevronDown,
   Edit2,
-  Filter,
   FunctionSquare,
   LineChart as LineChartIcon,
-  ListTree,
   PieChart as PieChartIcon,
   ScatterChart as ScatterChartIcon,
   Plus,
@@ -267,7 +265,7 @@ export function DynamicChart({
 
   const { chartData, scatterAxisMeta } = useMemo(() => {
     const prepared = isSingleColumn
-      ? prepareChartData(filteredData, chart.xAxis, yAxisColumns[0], chart.aggregation, chart.groupBy)
+      ? prepareChartData(filteredData, chart.xAxis, yAxisColumns[0], chart.aggregation)
       : prepareMultiColumnChartData(filteredData, chart.xAxis, yAxisColumns, chart.aggregation);
 
     if (chart.chartType !== "scatter") {
@@ -318,7 +316,7 @@ export function DynamicChart({
         isTemporalAxis: usesTemporalAxis
       }
     };
-  }, [chart.aggregation, chart.chartType, chart.groupBy, chart.xAxis, filteredData, isSingleColumn, yAxisColumns]);
+  }, [chart.aggregation, chart.chartType, chart.xAxis, filteredData, isSingleColumn, yAxisColumns]);
 
   const generatedId = useId();
   const chartUid = useMemo(() => {
@@ -400,28 +398,8 @@ export function DynamicChart({
     }))
   , []);
 
-  const groupByOptions = useMemo<ChartSelectOption[]>(() => {
-    if (!datasetAnalysis?.columns?.length) {
-      return [{ value: "none", label: "No grouping" }];
-    }
-
-    const candidates = datasetAnalysis.columns
-      .filter(col => col.name !== chart.xAxis && col.uniqueCount <= 50)
-      .map(col => ({
-        value: col.name,
-        label: humanizeColumnName(col.name),
-        description: `Group by ${col.uniqueCount.toLocaleString()} unique values`
-      }));
-
-    return [
-      { value: "none", label: "No grouping" },
-      ...candidates
-    ];
-  }, [datasetAnalysis?.columns, chart.xAxis]);
-
   const aggregationValue = chart.aggregation ?? "none";
   const chartTypeValue = chart.chartType;
-  const groupByValue = chart.groupBy ?? "none";
 
   const emitChartUpdate = useCallback((updates: Partial<DashboardChart>) => {
     const nextChart = { ...chart, ...updates } as DashboardChart;
@@ -465,11 +443,6 @@ export function DynamicChart({
 
   const xAxisReadable = useMemo(() => humanizeColumnName(chart.xAxis), [chart.xAxis]);
 
-  const groupByReadable = useMemo(
-    () => (chart.groupBy ? humanizeColumnName(chart.groupBy) : undefined),
-    [chart.groupBy]
-  );
-
   const chartTitleId = `${chartUid}-title`;
   const chartDescriptionId = `${chartUid}-description`;
   const chartGeneratedDescriptionId = `${chartUid}-description-generated`;
@@ -481,10 +454,6 @@ export function DynamicChart({
       : "";
 
     detailSegments.push(`${aggregationPrefix}${yAxisReadable} by ${xAxisReadable}`);
-
-    if (groupByReadable) {
-      detailSegments.push(`with ${groupByReadable} breakdown`);
-    }
 
     if (hasFilter && chart.filterColumn) {
       detailSegments.push(
@@ -508,7 +477,6 @@ export function DynamicChart({
     chart.filterValue,
     chartData.length,
     chartTypeDisplay?.label,
-    groupByReadable,
     hasFilter,
     xAxisReadable,
     yAxisReadable
@@ -542,19 +510,6 @@ export function DynamicChart({
       emitChartUpdate({ chartType: nextType });
     }
   }, [emitChartUpdate, yAxisColumns]);
-
-  const handleGroupByChange = useCallback((value: string) => {
-    emitChartUpdate({
-      groupBy: value === "none" ? undefined : value
-    });
-  }, [emitChartUpdate]);
-
-  const handleFilterClear = useCallback(() => {
-    emitChartUpdate({
-      filterColumn: undefined,
-      filterValue: undefined
-    });
-  }, [emitChartUpdate]);
 
   const renderChart = () => {
     const commonProps = {
@@ -940,7 +895,7 @@ export function DynamicChart({
             <button
               type="button"
               onClick={handleAddSeries}
-              className="flex h-10 items-center gap-2 rounded-lg border border-dashed border-border bg-surface-subtle px-3 text-xs font-semibold text-text-muted transition hover:border-border-strong hover:bg-surface-elevated hover:text-foreground"
+              className="flex h-10 items-center gap-2 rounded-[12px] border border-dashed border-border bg-surface-subtle px-3 text-xs font-semibold text-text-muted transition hover:border-border-strong hover:bg-surface-elevated hover:text-foreground"
             >
               <Plus className="h-3.5 w-3.5" />
               Add metric
@@ -957,31 +912,12 @@ export function DynamicChart({
             align="end"
           />
           <ChartControlSelect
-            value={groupByValue}
-            fallbackLabel={chart.groupBy ? `Grouped by ${humanizeColumnName(chart.groupBy)}` : "No grouping"}
-            options={groupByOptions}
-            icon={<ListTree className="h-4 w-4" />}
-            onValueChange={handleGroupByChange}
-            align="end"
-          />
-          <ChartControlSelect
             value={chartTypeValue}
             fallbackLabel={chartTypeDisplay.label}
             options={chartTypeOptions}
             icon={chartTypeDisplay.icon}
             onValueChange={handleChartTypeChange}
             align="end"
-          />
-          <ChartFilterControl
-            label={
-              hasFilter
-                ? `${humanizeColumnName(chart.filterColumn!)} = ${chart.filterValue}`
-                : "Add filter"
-            }
-            icon={<Filter className="h-4 w-4" />}
-            hasFilter={hasFilter}
-            onEdit={onEdit}
-            onClear={handleFilterClear}
           />
         </div>
       </div>
@@ -1045,7 +981,7 @@ function ChartControlSelect({
         <button
           type="button"
           className={cn(
-            "relative flex h-10 min-w-[160px] items-center justify-between gap-2 rounded-lg transition-all",
+            "relative flex h-10 items-center justify-between gap-2 rounded-[12px] transition-all overflow-hidden",
             "bg-white/[0.06] border border-white/10",
             "text-xs font-semibold text-foreground",
             "hover:bg-surface-elevated hover:border-border-strong"
@@ -1053,17 +989,19 @@ function ChartControlSelect({
         >
           {accentColor ? (
             <span
-              className="absolute inset-y-0 left-0 w-1 rounded-l-lg"
+              className="absolute inset-y-0 left-0 w-[5px]"
               style={{ 
-                backgroundColor: accentColor
+                backgroundColor: accentColor,
+                borderTopLeftRadius: '126px',
+                borderBottomLeftRadius: '1px'
               }}
             />
           ) : null}
-          <span className={cn("flex flex-1 items-center gap-2 truncate px-3", accentColor ? "pl-4" : "")}>
+          <span className={cn("flex items-center gap-2 whitespace-nowrap", accentColor ? "pl-4 pr-3" : "px-3")}>
             {icon}
-            <span className="truncate">{displayLabel}</span>
+            <span>{displayLabel}</span>
           </span>
-          <ChevronDown className="h-3.5 w-3.5 text-text-subtle mr-2" aria-hidden="true" />
+          <ChevronDown className="h-3.5 w-3.5 text-text-subtle mr-3" aria-hidden="true" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
@@ -1098,66 +1036,6 @@ function ChartControlSelect({
             ) : null}
           </DropdownMenuItem>
         ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-interface ChartFilterControlProps {
-  label: string;
-  icon?: ReactNode;
-  hasFilter: boolean;
-  onEdit: () => void;
-  onClear: () => void;
-}
-
-function ChartFilterControl({ label, icon, hasFilter, onEdit, onClear }: ChartFilterControlProps) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className={cn(
-            "flex h-10 min-w-[150px] items-center justify-between gap-2 rounded-lg transition-all",
-            "bg-surface-subtle border px-3 text-xs font-semibold",
-            hasFilter 
-              ? "border-warning/40 text-warning hover:bg-warning/10 hover:border-warning/60"
-              : "border-border text-text-muted hover:bg-surface-elevated hover:border-border-strong"
-          )}
-        >
-          <span className="flex flex-1 items-center gap-2 truncate">
-            {icon}
-            <span className="truncate">{label}</span>
-          </span>
-          <ChevronDown className="h-3.5 w-3.5 text-text-subtle" aria-hidden="true" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48 p-1.5 bg-surface-elevated border-border">
-        <DropdownMenuItem
-          disabled
-          className="cursor-default text-xs text-text-subtle hover:bg-transparent"
-        >
-          {hasFilter ? label : "No filter applied"}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={event => {
-            event.preventDefault();
-            onEdit();
-          }}
-          className="text-sm font-medium text-foreground hover:bg-surface-elevated cursor-pointer"
-        >
-          Edit filter…
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          disabled={!hasFilter}
-          onSelect={event => {
-            event.preventDefault();
-            onClear();
-          }}
-          className="text-sm text-foreground hover:bg-surface-elevated cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Clear filter
-        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

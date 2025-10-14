@@ -15,8 +15,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Menu, Moon, Sun, LogOut, Shield, User, Settings } from "lucide-react";
-import { useTheme } from "@/hooks/use-theme";
+import { Menu, LogOut, Shield, User, Settings } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
 
@@ -29,7 +28,6 @@ interface HeaderProps {
 }
 
 export function Header({ onMenuToggle, title, description, isProMode, onModeToggle }: HeaderProps) {
-  const { theme, setTheme } = useTheme();
   const { user, logout, isLogoutLoading } = useAuth();
 
   const handleLogout = async () => {
@@ -74,19 +72,8 @@ export function Header({ onMenuToggle, title, description, isProMode, onModeTogg
           )}
         </div>
         
-        {/* Right section - Theme, mode toggle, and profile */}
+        {/* Right section - Mode toggle and profile */}
         <div className="flex h-full items-center justify-end gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="relative text-text-muted hover:text-text-primary"
-          >
-            <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            <span className="sr-only">Toggle theme</span>
-          </Button>
-
           {!user ? (
             // Not logged in - show login buttons
             <div className="flex items-center gap-2">
