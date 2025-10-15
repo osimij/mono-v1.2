@@ -1007,8 +1007,12 @@ export function DynamicChart({
       columnTypeLookup
     );
 
-    const bounds = resolveTimeRangeBounds(afterAdvancedFilters, chart.xAxis, chart.timeRange);
-    const afterTimeFilter = filterRowsByTimeBounds(afterAdvancedFilters, chart.xAxis, bounds);
+    const bounds = isTemporalAxis
+      ? resolveTimeRangeBounds(afterAdvancedFilters, chart.xAxis, chart.timeRange)
+      : {};
+    const afterTimeFilter = isTemporalAxis
+      ? filterRowsByTimeBounds(afterAdvancedFilters, chart.xAxis, bounds)
+      : afterAdvancedFilters;
 
     const { rows: bucketedRows, bucketMeta, resolvedInterval } = bucketTemporalRows(
       afterTimeFilter,
@@ -1020,10 +1024,10 @@ export function DynamicChart({
     return {
       rows: bucketedRows,
       bucketMeta,
-      timeBounds: bounds,
+      timeBounds: isTemporalAxis ? bounds : undefined,
       resolvedInterval
     };
-  }, [chart.bucketInterval, chart.filterColumn, chart.filterValue, chart.filters, chart.timeRange, chart.xAxis, columnTypeLookup, data]);
+  }, [chart.bucketInterval, chart.filterColumn, chart.filterValue, chart.filters, chart.timeRange, chart.xAxis, columnTypeLookup, data, isTemporalAxis]);
 
   const chartHeight =
     chart.size === "large" ? 360 :
@@ -1692,7 +1696,32 @@ export function DynamicChart({
             </CardDescription>
           )}
         </div>
-        <div className="flex shrink-0 gap-1 text-text-subtle">
+        <div className="flex shrink-0 items-center gap-2 text-text-subtle">
+          {isTemporalAxis ? (
+            <div className="flex items-center gap-1 rounded-[12px] border border-white/10 bg-white/[0.04] p-1">
+              {timePresetOptions.map((option) => {
+                const isActive =
+                  activeTimePreset === option.value ||
+                  (!chart.timeRange && option.value === "auto");
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => handleTimePresetChange(option.value)}
+                    className={cn(
+                      "rounded-[10px] px-2.5 py-1 text-[11px] font-semibold transition",
+                      isActive
+                        ? "bg-foreground text-background shadow-sm"
+                        : "text-text-subtle hover:text-foreground hover:bg-white/10"
+                    )}
+                    aria-pressed={isActive}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -1765,27 +1794,6 @@ export function DynamicChart({
           ) : null}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2 md:gap-3">
-          <div className="flex items-center gap-1 rounded-[12px] border border-white/10 bg-white/[0.04] p-1">
-            {timePresetOptions.map((option) => {
-              const isActive = activeTimePreset === option.value || (!chart.timeRange && option.value === "auto");
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => handleTimePresetChange(option.value)}
-                  className={cn(
-                    "rounded-[10px] px-2.5 py-1 text-[11px] font-semibold transition",
-                    isActive
-                      ? "bg-foreground text-background shadow-sm"
-                      : "text-text-subtle hover:text-foreground hover:bg-white/10"
-                  )}
-                  aria-pressed={isActive}
-                >
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
           <ChartControlSelect
             value={aggregationValue}
             fallbackLabel={aggregationSummaryLabel}
