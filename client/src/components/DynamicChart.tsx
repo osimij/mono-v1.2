@@ -1432,16 +1432,12 @@ export function DynamicChart({
         return (
           <ReAreaChart {...commonProps}>
             <defs>
-              {seriesMeta.map((series, index) => {
-                const gradientKey = GRADIENT_KEYS[index % GRADIENT_KEYS.length];
-                const gradient = NEON_GRADIENTS[gradientKey];
-                return (
-                  <linearGradient key={series.gradientId} id={series.gradientId} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={gradient.start} stopOpacity={0.85} />
-                    <stop offset="95%" stopColor={gradient.end} stopOpacity={0.1} />
-                  </linearGradient>
-                );
-              })}
+              {seriesMeta.map((series) => (
+                <linearGradient key={series.gradientId} id={series.gradientId} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={series.color} stopOpacity={0.8} />
+                  <stop offset="95%" stopColor={series.color} stopOpacity={0.05} />
+                </linearGradient>
+              ))}
             </defs>
             <CartesianGrid strokeDasharray="0" stroke={chartTheme.gridStroke} vertical={false} />
             <XAxis
@@ -1576,18 +1572,6 @@ export function DynamicChart({
       case "horizontal_bar":
         return (
           <ReBarChart {...commonProps} layout="vertical" barGap={12} barCategoryGap={24}>
-            <defs>
-              {seriesMeta.map((series, index) => {
-                const gradientKey = GRADIENT_KEYS[index % GRADIENT_KEYS.length];
-                const gradient = NEON_GRADIENTS[gradientKey];
-                return (
-                  <linearGradient key={series.gradientId} id={series.gradientId} x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="5%" stopColor={gradient.start} stopOpacity={0.95} />
-                    <stop offset="95%" stopColor={gradient.end} stopOpacity={0.6} />
-                  </linearGradient>
-                );
-              })}
-            </defs>
             <CartesianGrid strokeDasharray="0" stroke={chartTheme.gridStroke} horizontal={false} />
             <XAxis
               type="number"
@@ -1616,7 +1600,7 @@ export function DynamicChart({
               <Bar
                 key={series.key}
                 dataKey={series.key}
-                fill={`url(#${series.gradientId})`}
+                fill={series.color}
                 strokeWidth={0}
                 radius={[0, 8, 8, 0]}
               />
@@ -1628,18 +1612,6 @@ export function DynamicChart({
       default:
         return (
           <ReBarChart {...commonProps} barGap={12} barCategoryGap={18}>
-            <defs>
-              {seriesMeta.map((series, index) => {
-                const gradientKey = GRADIENT_KEYS[index % GRADIENT_KEYS.length];
-                const gradient = NEON_GRADIENTS[gradientKey];
-                return (
-                  <linearGradient key={series.gradientId} id={series.gradientId} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={gradient.start} stopOpacity={0.95} />
-                    <stop offset="95%" stopColor={gradient.end} stopOpacity={0.6} />
-                  </linearGradient>
-                );
-              })}
-            </defs>
             <CartesianGrid strokeDasharray="0" stroke={chartTheme.gridStroke} vertical={false} />
             <XAxis
               dataKey={chart.xAxis}
@@ -1678,7 +1650,7 @@ export function DynamicChart({
                 key={series.key}
                 yAxisId={series.yAxisId}
                 dataKey={series.key}
-                fill={`url(#${series.gradientId})`}
+                fill={series.color}
                 strokeWidth={0}
                 radius={[8, 8, 0, 0]}
                 maxBarSize={48}
