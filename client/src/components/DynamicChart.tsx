@@ -373,7 +373,14 @@ const resolveTimeRangeBounds = (
   });
 
   if (timestamps.length === 0) {
-    return { ...timeRange };
+    const parsedStart = timeRange.start != null ? Date.parse(timeRange.start) : undefined;
+    const parsedEnd = timeRange.end != null ? Date.parse(timeRange.end) : undefined;
+    return {
+      start: parsedStart !== undefined && Number.isFinite(parsedStart) ? parsedStart : undefined,
+      end: parsedEnd !== undefined && Number.isFinite(parsedEnd) ? parsedEnd : undefined,
+      preset: timeRange.preset,
+      rollingDays: timeRange.rollingDays
+    };
   }
 
   const anchor = Math.max(...timestamps);
@@ -382,7 +389,7 @@ const resolveTimeRangeBounds = (
       ? resolveTimePresetBounds(timeRange.preset, anchor)
       : {};
 
-  if (!boundsFromPreset.start && !boundsFromPreset.end && timeRange.rollingDays) {
+  if (boundsFromPreset.start == null && boundsFromPreset.end == null && timeRange.rollingDays) {
     const range = MS_IN_DAY * timeRange.rollingDays;
     return {
       start: anchor - range,
@@ -411,13 +418,13 @@ const filterRowsByTimeBounds = (
   axisKey: string,
   bounds: { start?: number; end?: number }
 ) => {
-  if (!bounds.start && !bounds.end) return rows;
+  if (bounds.start == null && bounds.end == null) return rows;
   return rows.filter((row) => {
     const value = (row as Record<string, unknown>)[axisKey];
     const timestamp = parsePossibleDate(value);
     if (timestamp == null) return false;
-    if (bounds.start && timestamp < bounds.start) return false;
-    if (bounds.end && timestamp > bounds.end) return false;
+    if (bounds.start != null && timestamp < bounds.start) return false;
+    if (bounds.end != null && timestamp > bounds.end) return false;
     return true;
   });
 };
@@ -766,7 +773,7 @@ const evaluateFilterRule = (
   if (rule.operator === "between") {
     if (type === "date" || type === "number") {
       const numericValue = typeof coercedRowValue === "number" ? coercedRowValue : toNumber(coercedRowValue);
-      if (!Number.isFinite(numericValue)) return false;
+      if (numericValue == null || !Number.isFinite(numericValue)) return false;
       const start = rule.value == null ? Number.NEGATIVE_INFINITY : Number(coerceValueForType(rule.value, type));
       const end = rule.valueTo == null ? Number.POSITIVE_INFINITY : Number(coerceValueForType(rule.valueTo, type));
       return numericValue >= start && numericValue <= end;
@@ -797,6 +804,9 @@ const evaluateFilterRule = (
 
   if (type === "number" || type === "date") {
     const numericRowValue = typeof coercedRowValue === "number" ? coercedRowValue : toNumber(coercedRowValue);
+    if (numericRowValue == null) {
+      return false;
+    }
     const numericComparison = Number(coerceValueForType(comparisonValue, type));
     if (!Number.isFinite(numericRowValue) || !Number.isFinite(numericComparison)) {
       return false;
