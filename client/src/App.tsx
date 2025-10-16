@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { queryClient } from "./lib/queryClient";
@@ -7,12 +7,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/layout/Layout";
 import { useAuth } from "@/hooks/useAuth";
 import { ModeProvider } from "@/hooks/useMode";
+import { DataFactoryLayout } from "@/components/DataFactoryLayout";
+import { DashboardsLayout } from "@/components/DashboardsLayout";
 
 // Pages
 import { HomePage } from "@/pages/HomePage";
 import { DataPage } from "@/pages/DataPage";
 import { SegmentationPage } from "@/pages/SegmentationPage";
-import { AnalysisPage } from "@/pages/AnalysisPage";
 import { ModelingPage } from "@/pages/ModelingPage";
 import { AssistantPage } from "@/pages/AssistantPage";
 import { ProfilePage } from "@/pages/ProfilePage";
@@ -29,6 +30,8 @@ import { DataCleaningPage } from "@/pages/DataCleaningPage";
 import { SegmentationCustomersPage } from "@/pages/SegmentationCustomersPage";
 import { DataFilteringPage } from "@/pages/DataFilteringPage";
 import { AnalysisOverviewPage } from "@/pages/AnalysisOverviewPage";
+import { DashboardViewerPage } from "@/pages/DashboardViewerPage";
+import { DashboardBuilderPage } from "@/pages/DashboardBuilderPage";
 import { PlaceholderPage } from "@/pages/PlaceholderPage";
 
 // Icons for placeholder pages
@@ -61,10 +64,37 @@ function PublicRouter() {
         <Route path="/" component={HomePage} />
         
         {/* Data Factory Routes */}
-        <Route path="/data" component={DataPage} />
-        <Route path="/data/upload" component={DataUploadPage} />
-        <Route path="/data/preview" component={DataPreviewPage} />
-        <Route path="/data/cleaning" component={DataCleaningPage} />
+        <Route path="/data">
+          <Redirect to="/data/preview" />
+        </Route>
+        <Route path="/data/preview">
+          {() => (
+            <DataFactoryLayout>
+              <DataPreviewPage />
+            </DataFactoryLayout>
+          )}
+        </Route>
+        <Route path="/data/upload">
+          {() => (
+            <DataFactoryLayout>
+              <DataUploadPage />
+            </DataFactoryLayout>
+          )}
+        </Route>
+        <Route path="/data/cleaning">
+          {() => (
+            <DataFactoryLayout>
+              <DataCleaningPage />
+            </DataFactoryLayout>
+          )}
+        </Route>
+        <Route path="/data/filtering">
+          {() => (
+            <DataFactoryLayout>
+              <DataFilteringPage />
+            </DataFactoryLayout>
+          )}
+        </Route>
         <Route path="/data/validation">
           {() => <PlaceholderPage title="Data Validation" description="Validate data quality" icon={Shield} parentPath="/data" />}
         </Route>
@@ -80,9 +110,29 @@ function PublicRouter() {
           {() => <PlaceholderPage title="Filter Templates" description="Save and reuse filters" icon={Star} parentPath="/segmentation" />}
         </Route>
         
+        {/* Dashboards Routes */}
+        <Route path="/dashboards">
+          <Redirect to="/dashboards/viewer" />
+        </Route>
+        <Route path="/dashboards/viewer">
+          {() => (
+            <DashboardsLayout>
+              <DashboardViewerPage />
+            </DashboardsLayout>
+          )}
+        </Route>
+        <Route path="/dashboards/builder">
+          {() => (
+            <DashboardsLayout>
+              <DashboardBuilderPage />
+            </DashboardsLayout>
+          )}
+        </Route>
+        
         {/* Analysis Routes */}
-        <Route path="/analysis" component={AnalysisPage} />
-        <Route path="/analysis/overview" component={AnalysisOverviewPage} />
+        <Route path="/analysis">
+          <Redirect to="/analysis/trends" />
+        </Route>
         <Route path="/analysis/trends">
           {() => <PlaceholderPage title="Trend Analysis" description="Time-based analysis" icon={TrendingUp} parentPath="/analysis" />}
         </Route>

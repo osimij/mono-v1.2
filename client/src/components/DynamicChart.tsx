@@ -24,7 +24,8 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Cell
+  Cell,
+  PieLabelRenderProps
 } from "recharts";
 import {
   AreaChart as AreaChartIcon,
@@ -103,6 +104,67 @@ const CHART_COLORS = [
 const GRADIENT_KEYS = Object.keys(NEON_GRADIENTS) as (keyof typeof NEON_GRADIENTS)[];
 
 const MAX_RAW_POINTS = 400;
+
+const RADIAN = Math.PI / 180;
+
+function adjustHexColor(hexColor: string, factor: number): string {
+  const normalized = hexColor.replace("#", "");
+  if (normalized.length !== 6) return hexColor;
+
+  const numeric = Number.parseInt(normalized, 16);
+  if (Number.isNaN(numeric)) return hexColor;
+
+  const clampChannel = (value: number) => Math.max(0, Math.min(255, value));
+  const adjustChannel = (channel: number) => {
+    if (factor >= 0) {
+      return clampChannel(Math.round(channel + (255 - channel) * factor));
+    }
+    return clampChannel(Math.round(channel * (1 + factor)));
+  };
+
+  const red = (numeric >> 16) & 0xff;
+  const green = (numeric >> 8) & 0xff;
+  const blue = numeric & 0xff;
+
+  const nextRed = adjustChannel(red);
+  const nextGreen = adjustChannel(green);
+  const nextBlue = adjustChannel(blue);
+
+  return `#${((1 << 24) + (nextRed << 16) + (nextGreen << 8) + nextBlue).toString(16).slice(1)}`;
+}
+
+function getPieSegmentColor(index: number): string {
+  const baseColor = CHART_COLORS[index % CHART_COLORS.length];
+  const cycle = Math.floor(index / CHART_COLORS.length);
+  if (cycle === 0) return baseColor;
+
+  const intensity = Math.min(0.45, 0.16 * cycle);
+  return cycle % 2 === 0
+    ? adjustHexColor(baseColor, intensity)
+    : adjustHexColor(baseColor, -intensity);
+}
+
+function getAccessibleTextColor(hexColor: string): string {
+  const normalized = hexColor.replace("#", "");
+  if (normalized.length !== 6) return "#FFFFFF";
+
+  const numeric = Number.parseInt(normalized, 16);
+  if (Number.isNaN(numeric)) return "#FFFFFF";
+
+  const red = (numeric >> 16) & 0xff;
+  const green = (numeric >> 8) & 0xff;
+  const blue = numeric & 0xff;
+
+  const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
+  return luminance > 0.65 ? "#1A1A1A" : "#FFFFFF";
+}
+
+function formatPiePercent(value: number): string {
+  const percent = value * 100;
+  if (percent >= 10) return `${percent.toFixed(0)}%`;
+  if (percent >= 1) return `${percent.toFixed(1)}%`;
+  return `${percent.toFixed(2)}%`;
+}
 
 type ColumnType = 'number' | 'string' | 'date' | 'boolean';
 
@@ -922,11 +984,13 @@ export function DynamicChart({
   datasetAnalysis,
   onUpdate,
   onEdit,
-  onDelete
+  onDelete,
+  readOnly = false
 }: DynamicChartProps) {
   const chartTheme = useChartTheme();
   const yAxisColumns = Array.isArray(chart.yAxis) ? chart.yAxis : [chart.yAxis];
   const isSingleColumn = yAxisColumns.length === 1;
+  const isReadOnly = readOnly;
 
   const [hasAggregationOverride, setHasAggregationOverride] = useState(() => chart.aggregation !== undefined);
   const previousXAxisRef = useRef(chart.xAxis);
@@ -1199,6 +1263,156 @@ export function DynamicChart({
     [bucketMeta, isTemporalAxis]
   );
 
+  const pieValueFormatter = useMemo(
+    () => new Intl.NumberFormat("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 }),
+    []
+  );
+
+  const pieBreakdown = useMemo(() => {
+    if (chart.chartType !== "pie" || yAxisColumns.length === 0) {
+      return null;
+    }
+
+    const metricKey = yAxisColumns[0];
+    if (!metricKey) {
+      return null;
+    }
+
+    type PieSegmentInfo = {
+      originalIndex: number;
+      rawName: unknown;
+      label: string;
+      value: number;
+      color: string;
+      percent: number;
+      formattedValue: string;
+      formattedPercent: string;
+    };
+
+    const segments: Array<{
+      originalIndex: number;
+      rawName: unknown;
+      label: string;
+      value: number;
+    }> = [];
+
+    chartData.forEach((entry, originalIndex) => {
+      const rawValue = entry[metricKey];
+      const numericValue =
+        typeof rawValue === "number"
+          ? rawValue
+          : rawValue == null || rawValue === ""
+            ? NaN
+            : Number(rawValue);
+
+      if (!Number.isFinite(numericValue) || numericValue <= 0) {
+        return;
+      }
+
+      const rawName = entry[chart.xAxis];
+      const label = formatXAxisValue(rawName);
+
+      segments.push({
+        originalIndex,
+        rawName,
+        label,
+        value: numericValue
+      });
+    });
+
+    const total = segments.reduce((sum, segment) => sum + segment.value, 0);
+
+    if (segments.length === 0) {
+      return {
+        metricKey,
+        total,
+        segments: [] as PieSegmentInfo[],
+        data: [] as typeof chartData
+      };
+    }
+
+    const sorted = segments.slice().sort((a, b) => b.value - a.value);
+
+    const detailed: PieSegmentInfo[] = sorted.map((segment, index) => {
+      const percent = total > 0 ? segment.value / total : 0;
+      return {
+        ...segment,
+        color: getPieSegmentColor(index),
+        percent,
+        formattedValue: pieValueFormatter.format(segment.value),
+        formattedPercent: formatPiePercent(percent)
+      };
+    });
+
+    const data = detailed.map((segment) => {
+      const original = chartData[segment.originalIndex];
+      return {
+        ...original,
+        [metricKey]: segment.value,
+        __pieColor: segment.color,
+        __piePercent: segment.percent,
+        __pieLabel: segment.label,
+        __pieFormattedValue: segment.formattedValue,
+        __pieFormattedPercent: segment.formattedPercent
+      };
+    });
+
+    return {
+      metricKey,
+      total,
+      segments: detailed,
+      data
+    };
+  }, [chart.chartType, chart.xAxis, chartData, formatXAxisValue, pieValueFormatter, yAxisColumns]);
+
+  const pieHasSegments = Boolean(pieBreakdown && pieBreakdown.segments.length > 0);
+
+  const renderPieLabel = useCallback((props: PieLabelRenderProps) => {
+    if (!pieBreakdown || !pieHasSegments) {
+      return null;
+    }
+
+    const {
+      cx = 0,
+      cy = 0,
+      midAngle = 0,
+      innerRadius = 0,
+      outerRadius = 0,
+      index = 0
+    } = props;
+
+    const centerX = typeof cx === "number" ? cx : Number(cx) || 0;
+    const centerY = typeof cy === "number" ? cy : Number(cy) || 0;
+    const angle = typeof midAngle === "number" ? midAngle : Number(midAngle) || 0;
+    const inner = typeof innerRadius === "number" ? innerRadius : Number(innerRadius) || 0;
+    const outer = typeof outerRadius === "number" ? outerRadius : Number(outerRadius) || 0;
+    const segmentIndex = typeof index === "number" ? index : Number(index) || 0;
+
+    const segment = pieBreakdown.segments[segmentIndex];
+    if (!segment || segment.percent < 0.05) {
+      return null;
+    }
+
+    const radius = inner + (outer - inner) * 0.58;
+    const labelX = centerX + radius * Math.cos(-angle * RADIAN);
+    const labelY = centerY + radius * Math.sin(-angle * RADIAN);
+    const textColor = getAccessibleTextColor(segment.color);
+
+    return (
+      <text
+        x={labelX}
+        y={labelY}
+        fill={textColor}
+        fontSize={11}
+        fontWeight={600}
+        textAnchor={labelX > centerX ? "start" : "end"}
+        dominantBaseline="central"
+      >
+        {`${segment.label || "Unknown"} · ${segment.formattedPercent}`}
+      </text>
+    );
+  }, [pieBreakdown, pieHasSegments]);
+
   const chartTypeDisplay = CHART_TYPE_META[chart.chartType];
   const aggregationDisplay = appliedAggregation
     ? AGGREGATION_LABEL[appliedAggregation]
@@ -1248,8 +1462,13 @@ export function DynamicChart({
     ? (appliedAggregation ?? "none")
     : "auto";
   const chartTypeValue = chart.chartType;
+  const canEditChart = Boolean(onEdit) && !isReadOnly;
+  const canDeleteChart = Boolean(onDelete) && !isReadOnly;
+  const showChartMenu = canEditChart || canDeleteChart;
 
   const emitChartUpdate = useCallback((updates: Partial<DashboardChart>) => {
+    if (isReadOnly || !onUpdate) return;
+
     const nextChart = { ...chart, ...updates } as DashboardChart;
 
     if (Array.isArray(nextChart.yAxis)) {
@@ -1261,7 +1480,7 @@ export function DynamicChart({
     }
 
     onUpdate(nextChart);
-  }, [chart, onUpdate, yAxisColumns]);
+  }, [chart, isReadOnly, onUpdate, yAxisColumns]);
 
   const handleSeriesOptionSelect = useCallback((index: number, option: ChartSelectOption) => {
     if (option.value === METRIC_NONE_VALUE) {
@@ -1479,39 +1698,87 @@ export function DynamicChart({
           </ReAreaChart>
         );
 
-      case "pie":
+      case "pie": {
+        const metricKey = pieBreakdown?.metricKey ?? yAxisColumns[0];
+        if (!metricKey) {
+          return (
+            <RePieChart>
+              <Tooltip
+                contentStyle={chartTheme.tooltipStyle}
+                labelStyle={chartTheme.tooltipLabelStyle}
+                itemStyle={chartTheme.tooltipItemStyle}
+                labelFormatter={(value) => formatXAxisValue(value)}
+              />
+            </RePieChart>
+          );
+        }
+
+        const pieData = pieBreakdown?.data ?? [];
         return (
           <RePieChart>
             <Pie
-              data={chartData}
-              dataKey={yAxisColumns[0]}
+              data={pieData}
+              dataKey={metricKey}
               nameKey={chart.xAxis}
               cx="50%"
               cy="50%"
-              innerRadius={54}
-              outerRadius={88}
-              label={({ name }) => formatXAxisValue(name)}
+              innerRadius={56}
+              outerRadius={94}
+              labelLine={false}
+              label={pieHasSegments ? renderPieLabel : undefined}
               strokeWidth={0}
-              paddingAngle={3}
+              paddingAngle={pieHasSegments && pieData.length > 1 ? 2 : 0}
+              startAngle={90}
+              endAngle={-270}
+              isAnimationActive={pieHasSegments}
             >
-              {chartData.map((entry, index) => {
-                const colorIndex = index % CHART_COLORS.length;
-                return (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={CHART_COLORS[colorIndex]}
+              {pieHasSegments
+                ? pieBreakdown?.segments.map((segment, index) => (
+                  <Cell
+                    key={`cell-${index}-${segment.label || "unknown"}`}
+                    fill={segment.color}
+                    aria-label={`${segment.label || "Unknown"}: ${segment.formattedValue} (${segment.formattedPercent})`}
                   />
-                );
-              })}
+                ))
+                : null}
             </Pie>
-            <Tooltip 
+            <Tooltip
               contentStyle={chartTheme.tooltipStyle}
               labelStyle={chartTheme.tooltipLabelStyle}
               itemStyle={chartTheme.tooltipItemStyle}
               labelFormatter={(value) => formatXAxisValue(value)}
+              formatter={(value: number | string, _name, info) => {
+                const payload = (info?.payload ?? {}) as Record<string, unknown>;
+                if (typeof value !== "number") {
+                  return [String(value), formatXAxisValue(payload[chart.xAxis])];
+                }
+
+                const formattedValueSource = payload["__pieFormattedValue"];
+                const formattedPercentSource = payload["__pieFormattedPercent"];
+                const percentSource = payload["__piePercent"];
+                const axisValue = payload[chart.xAxis];
+
+                const formattedValue =
+                  typeof formattedValueSource === "string"
+                    ? formattedValueSource
+                    : pieValueFormatter.format(value);
+
+                const formattedPercent =
+                  typeof formattedPercentSource === "string"
+                    ? formattedPercentSource
+                    : formatPiePercent(
+                        typeof percentSource === "number" ? percentSource : 0
+                      );
+
+                return [
+                  `${formattedValue} (${formattedPercent})`,
+                  formatXAxisValue(axisValue)
+                ];
+              }}
             />
           </RePieChart>
         );
+      }
 
       case "scatter":
         return (
@@ -1722,34 +1989,40 @@ export function DynamicChart({
               })}
             </div>
           ) : null}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8 hover:bg-surface-muted hover:text-foreground transition-colors"
-                aria-label="Chart options"
-              >
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem
-                onClick={onEdit}
-                className="flex items-center gap-2 cursor-pointer"
-              >
-                <Edit2 className="h-4 w-4" />
-                <span>Edit</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={onDelete}
-                className="flex items-center gap-2 cursor-pointer text-red-400 focus:text-red-400"
-              >
-                <Trash2 className="h-4 w-4" />
-                <span>Delete</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {showChartMenu ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 hover:bg-surface-muted hover:text-foreground transition-colors"
+                  aria-label="Chart options"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                {canEditChart ? (
+                  <DropdownMenuItem
+                    onClick={() => onEdit?.()}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                    <span>Edit</span>
+                  </DropdownMenuItem>
+                ) : null}
+                {canDeleteChart ? (
+                  <DropdownMenuItem
+                    onClick={() => onDelete?.()}
+                    className="flex items-center gap-2 cursor-pointer text-red-400 focus:text-red-400"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span>Delete</span>
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
         </div>
       </CardHeader>
 
@@ -1815,10 +2088,54 @@ export function DynamicChart({
 
       <CardContent className="px-0 pb-4 pt-4">
         <div data-chart={chartUid} className={chartContainerClasses} style={{ height: chartHeight }}>
+          {chart.chartType === "pie" && (!pieBreakdown || !pieHasSegments) ? (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center text-xs font-medium text-text-muted">
+              No positive values to visualize
+            </div>
+          ) : null}
           <ResponsiveContainer width="100%" height="100%">
             {renderChart()}
           </ResponsiveContainer>
         </div>
+        {chart.chartType === "pie" ? (
+          <div className="mt-4 px-4">
+            {pieBreakdown ? (
+              pieHasSegments ? (
+                <>
+                  <div className="text-xs font-semibold text-foreground">
+                    Combined value: {pieValueFormatter.format(pieBreakdown.total)}
+                  </div>
+                  <ul role="list" className="mt-2 grid gap-2 text-xs text-text-muted sm:grid-cols-2">
+                    {pieBreakdown.segments.map((segment, index) => (
+                      <li key={`legend-${index}-${segment.label || "unknown"}`} className="flex items-center gap-2">
+                        <span
+                          aria-hidden="true"
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: segment.color }}
+                        />
+                        <span className="flex-1">
+                          <span className="font-medium text-foreground">{segment.label || "Unknown"}</span>
+                          <span className="text-text-muted">
+                            {" "}
+                            · {segment.formattedValue} ({segment.formattedPercent})
+                          </span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <p className="text-xs text-text-muted">
+                  No positive values to visualize for the selected metric.
+                </p>
+              )
+            ) : (
+              <p className="text-xs text-text-muted">
+                Unable to render a pie chart with the current configuration.
+              </p>
+            )}
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -1828,9 +2145,10 @@ interface DynamicChartProps {
   chart: DashboardChart;
   data: any[];
   datasetAnalysis?: DatasetAnalysis | null;
-  onUpdate: (chart: DashboardChart) => void;
-  onEdit: () => void;
-  onDelete: () => void;
+  onUpdate?: (chart: DashboardChart) => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  readOnly?: boolean;
 }
 
 interface ChartControlSelectProps {

@@ -794,37 +794,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard configuration routes
-  
-  // Get dashboard config for a dataset
-  app.get("/api/dashboards/:datasetId", async (req: any, res) => {
+  app.get("/api/dashboards", async (req: any, res) => {
     try {
-      const datasetId = parseInt(req.params.datasetId);
       const sessionId = req.headers.authorization?.replace('Bearer ', '');
       const session = authSessions.get(sessionId);
-      const userId = session?.user?.id || "1"; // Default to demo user
-      
+      const userId = session?.user?.id || "1";
+
+      const dashboards = await db
+        .select()
+        .from(dashboardConfigs)
+        .where(sql`${dashboardConfigs.userId} = ${userId}`)
+        .orderBy(sql`${dashboardConfigs.updatedAt} DESC`);
+
+      res.json(dashboards);
+    } catch (error) {
+      console.error("Failed to fetch dashboards:", error);
+      res.status(500).json({ error: "Failed to fetch dashboards" });
+    }
+  });
+
+  app.get("/api/dashboards/:id", async (req: any, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (Number.isNaN(id)) {
+        return res.status(400).json({ error: "Invalid dashboard id" });
+      }
+
+      const sessionId = req.headers.authorization?.replace('Bearer ', '');
+      const session = authSessions.get(sessionId);
+      const userId = session?.user?.id || "1";
+
       const result = await db
         .select()
         .from(dashboardConfigs)
-        .where(sql`${dashboardConfigs.datasetId} = ${datasetId} AND ${dashboardConfigs.userId} = ${userId}`)
+        .where(sql`${dashboardConfigs.id} = ${id} AND ${dashboardConfigs.userId} = ${userId}`)
         .limit(1);
-      
-      if (result.length > 0) {
-        res.json(result[0]);
-      } else {
-        // Return default empty config
-        res.json({
-          id: null,
-          userId,
-          datasetId,
-          name: "My Dashboard",
-          metrics: [],
-          charts: []
-        });
+
+      if (result.length === 0) {
+        return res.status(404).json({ error: "Dashboard not found" });
       }
+
+      res.json(result[0]);
     } catch (error) {
-      console.error("Failed to fetch dashboard config:", error);
-      res.status(500).json({ error: "Failed to fetch dashboard configuration" });
+      console.error("Failed to fetch dashboard:", error);
+      res.status(500).json({ error: "Failed to fetch dashboard" });
     }
   });
   
@@ -835,30 +848,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const session = authSessions.get(sessionId);
       const userId = session?.user?.id || "1";
       
-      const { id, datasetId, name, metrics, charts } = req.body;
+      const { id, datasetId, name, metrics = [], charts = [] } = req.body;
+      const dashboardName = name?.trim() || "Untitled dashboard";
       
       if (id) {
-        // Update existing
         const result = await db
           .update(dashboardConfigs)
           .set({
-            name,
+            name: dashboardName,
+            datasetId: datasetId ?? null,
             metrics,
             charts,
             updatedAt: new Date()
           })
-          .where(sql`${dashboardConfigs.id} = ${id}`)
+          .where(sql`${dashboardConfigs.id} = ${id} AND ${dashboardConfigs.userId} = ${userId}`)
           .returning();
+
+        if (result.length === 0) {
+          return res.status(404).json({ error: "Dashboard not found" });
+        }
         
         res.json(result[0]);
       } else {
-        // Create new
         const result = await db
           .insert(dashboardConfigs)
           .values({
             userId,
-            datasetId,
-            name,
+            datasetId: datasetId ?? null,
+            name: dashboardName,
             metrics,
             charts
           })
@@ -873,13 +890,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Delete dashboard config
-  app.delete("/api/dashboards/:id", async (req, res) => {
+  app.delete("/api/dashboards/:id", async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
-      await db
+      const id = Number(req.params.id);
+      if (Number.isNaN(id)) {
+        return res.status(400).json({ error: "Invalid dashboard id" });
+      }
+
+      const sessionId = req.headers.authorization?.replace('Bearer ', '');
+      const session = authSessions.get(sessionId);
+      const userId = session?.user?.id || "1";
+
+      const result = await db
         .delete(dashboardConfigs)
-        .where(sql`${dashboardConfigs.id} = ${id}`);
+        .where(sql`${dashboardConfigs.id} = ${id} AND ${dashboardConfigs.userId} = ${userId}`)
+        .returning({ id: dashboardConfigs.id });
       
+      if (result.length === 0) {
+        return res.status(404).json({ error: "Dashboard not found" });
+      }
+
       res.json({ success: true });
     } catch (error) {
       console.error("Failed to delete dashboard config:", error);

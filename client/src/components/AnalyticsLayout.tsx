@@ -13,16 +13,8 @@ export function AnalyticsLayout({ children }: AnalyticsLayoutProps) {
     if (!location) {
       return {
         headline: "Analytics Dashboard",
-        summary: "Explore dashboards, trend views, and reports built around your business questions.",
+        summary: "Explore trend views, correlations, and reports built around your business questions.",
         activeTabId: undefined
-      };
-    }
-
-    if (location.startsWith("/analysis/overview")) {
-      return {
-        headline: "Overview Dashboard",
-        summary: "Review curated KPIs and saved visualizations to understand the health of the selected dataset at a glance.",
-        activeTabId: "analytics-tab-overview"
       };
     }
 
@@ -68,7 +60,7 @@ export function AnalyticsLayout({ children }: AnalyticsLayoutProps) {
 
     return {
       headline: "Analytics Dashboard",
-      summary: "Explore dashboards, trend views, and reports built around your business questions.",
+      summary: "Explore trend views, correlations, and reports built around your business questions.",
       activeTabId: undefined
     };
   }, [location]);

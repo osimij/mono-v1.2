@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { BarChart3, LineChart, PieChart, ScatterChart, AreaChart, X } from "lucide-react";
+import { BarChart3, LineChart, PieChart, ScatterChart, AreaChart, X, Loader2 } from "lucide-react";
 import type { DashboardChart } from "@shared/schema";
 import type { ColumnInfo } from "@/lib/dataAnalyzer";
 import { getRecommendedChartType } from "@/lib/dataAnalyzer";
@@ -14,7 +14,8 @@ interface AddChartDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (chart: DashboardChart) => void;
-  columns: ColumnInfo[];
+  datasets: Array<{ id: number; label: string }>;
+  resolveDatasetColumns: (datasetId: number) => Promise<ColumnInfo[]>;
   existingChart?: DashboardChart;
 }
 
@@ -45,9 +46,14 @@ export function AddChartDialog({
   open, 
   onOpenChange, 
   onSave, 
-  columns,
+  datasets,
+  resolveDatasetColumns,
   existingChart 
 }: AddChartDialogProps) {
+  const [selectedDatasetId, setSelectedDatasetId] = useState<number | null>(existingChart?.datasetId ?? (datasets[0]?.id ?? null));
+  const [availableColumns, setAvailableColumns] = useState<ColumnInfo[]>([]);
+  const [columnsLoading, setColumnsLoading] = useState(false);
+  const [columnsError, setColumnsError] = useState<string | null>(null);
   const [title, setTitle] = useState(existingChart?.title || "");
   const [description, setDescription] = useState(existingChart?.description || "");
   const [chartType, setChartType] = useState<string>(existingChart?.chartType || "bar");
@@ -62,45 +68,14 @@ export function AddChartDialog({
   const [filterColumn, setFilterColumn] = useState<string | null>(existingChart?.filterColumn ?? null);
   const [filterValue, setFilterValue] = useState(existingChart?.filterValue || "");
 
-  // Auto-suggest chart type when both axes are selected
-  useEffect(() => {
-    if (xAxis && yAxisColumns.length > 0 && !existingChart) {
-      const xCol = columns.find(c => c.name === xAxis);
-      const yCol = columns.find(c => c.name === yAxisColumns[0]);
-      
-      if (xCol && yCol) {
-        const recommended = getRecommendedChartType(xCol.type, yCol.type);
-        setChartType(recommended);
-      }
-    }
-  }, [xAxis, yAxisColumns, columns, existingChart]);
-
-  const handleSave = () => {
-    if (!title || !xAxis || yAxisColumns.length === 0) return;
-
-    const chart: DashboardChart = {
-      id: existingChart?.id || `chart_${Date.now()}`,
-      title,
-      description,
-      chartType: chartType as any,
-      xAxis,
-      yAxis: yAxisColumns.length === 1 ? yAxisColumns[0] : yAxisColumns,
-      aggregation: aggregation !== 'none' ? (aggregation as any) : undefined,
-      size: size as any
-    };
-
-    if (filterColumn && filterValue) {
-      chart.filterColumn = filterColumn;
-      chart.filterValue = filterValue;
-    }
-
-    onSave(chart);
-    resetForm();
-    onOpenChange(false);
-  };
+  const selectedDatasetLabel = useMemo(() => {
+    if (selectedDatasetId == null) return undefined;
+    return datasets.find((ds) => ds.id === selectedDatasetId)?.label;
+  }, [datasets, selectedDatasetId]);
 
   const resetForm = () => {
     if (!existingChart) {
+      setSelectedDatasetId(datasets[0]?.id ?? null);
       setTitle("");
       setDescription("");
       setChartType("bar");
@@ -113,12 +88,136 @@ export function AddChartDialog({
     }
   };
 
-  const toggleYAxisColumn = (columnName: string) => {
-    if (yAxisColumns.includes(columnName)) {
-      setYAxisColumns(yAxisColumns.filter(c => c !== columnName));
-    } else {
-      setYAxisColumns([...yAxisColumns, columnName]);
+  useEffect(() => {
+    if (!open) {
+      return;
     }
+
+    if (existingChart) {
+      setSelectedDatasetId(existingChart.datasetId);
+      setTitle(existingChart.title);
+      setDescription(existingChart.description || "");
+      setChartType(existingChart.chartType);
+      setXAxis(existingChart.xAxis || "");
+      setYAxisColumns(
+        existingChart.yAxis
+          ? (Array.isArray(existingChart.yAxis) ? existingChart.yAxis : [existingChart.yAxis])
+          : []
+      );
+      setAggregation(existingChart.aggregation || "none");
+      setSize(existingChart.size || "medium");
+      setFilterColumn(existingChart.filterColumn ?? null);
+      setFilterValue(existingChart.filterValue || "");
+    } else {
+      resetForm();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, existingChart?.id]);
+
+  useEffect(() => {
+    if (selectedDatasetId == null) {
+      setAvailableColumns([]);
+      return;
+    }
+
+    let isActive = true;
+    setColumnsLoading(true);
+    setColumnsError(null);
+
+    resolveDatasetColumns(selectedDatasetId)
+      .then((columns) => {
+        if (!isActive) return;
+        setAvailableColumns(columns);
+
+        if (columns.length > 0) {
+          setXAxis((prev) => (prev && columns.some((col) => col.name === prev) ? prev : columns[0].name));
+          setYAxisColumns((prev) => {
+            const valid = prev.filter((col) => columns.some((c) => c.name === col));
+            if (valid.length > 0) {
+              return valid;
+            }
+            return columns[0] ? [columns[0].name] : [];
+          });
+          if (filterColumn && !columns.some((c) => c.name === filterColumn)) {
+            setFilterColumn(null);
+            setFilterValue("");
+          }
+        } else {
+          setXAxis("");
+          setYAxisColumns([]);
+          setFilterColumn(null);
+          setFilterValue("");
+        }
+      })
+      .catch(() => {
+        if (!isActive) return;
+        setAvailableColumns([]);
+        setColumnsError("Unable to load dataset columns. Please try again.");
+        setXAxis("");
+        setYAxisColumns([]);
+        setFilterColumn(null);
+        setFilterValue("");
+      })
+      .finally(() => {
+        if (isActive) {
+          setColumnsLoading(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDatasetId, resolveDatasetColumns]);
+
+  useEffect(() => {
+    if (xAxis && yAxisColumns.length > 0 && !existingChart) {
+      const xCol = availableColumns.find(c => c.name === xAxis);
+      const yCol = availableColumns.find(c => c.name === yAxisColumns[0]);
+      
+      if (xCol && yCol) {
+        const recommended = getRecommendedChartType(xCol.type, yCol.type);
+        setChartType(recommended);
+      }
+    }
+  }, [xAxis, yAxisColumns, availableColumns, existingChart]);
+
+  const handleSave = () => {
+    if (!title || !xAxis || yAxisColumns.length === 0 || selectedDatasetId == null) return;
+
+    const chart: DashboardChart = {
+      id: existingChart?.id || `chart_${Date.now()}`,
+      datasetId: selectedDatasetId,
+      datasetName: selectedDatasetLabel,
+      title,
+      description,
+      chartType: chartType as any,
+      xAxis,
+      yAxis: yAxisColumns.length === 1 ? yAxisColumns[0] : yAxisColumns,
+      aggregation: aggregation !== 'none' ? (aggregation as any) : undefined,
+      size: size as any
+    };
+
+    if (filterColumn && filterValue) {
+      chart.filterColumn = filterColumn;
+      chart.filterValue = filterValue;
+    } else {
+      chart.filterColumn = undefined;
+      chart.filterValue = undefined;
+    }
+
+    onSave(chart);
+    resetForm();
+    onOpenChange(false);
+  };
+
+  const toggleYAxisColumn = (columnName: string) => {
+    setYAxisColumns((prev) => {
+      if (prev.includes(columnName)) {
+        return prev.filter((col) => col !== columnName);
+      }
+      return [...prev, columnName];
+    });
   };
 
   useEffect(() => {
@@ -127,10 +226,23 @@ export function AddChartDialog({
     }
   }, [filterColumn]);
 
-  const numericColumns = columns.filter(c => c.type === 'number');
-  
-  // For Y-axis, prefer numeric columns for most chart types
-  const availableYAxisColumns = chartType === 'pie' ? columns : numericColumns;
+  const numericColumns = useMemo(
+    () => availableColumns.filter(c => c.type === 'number'),
+    [availableColumns]
+  );
+
+  const availableYAxisColumns = useMemo(
+    () => (chartType === 'pie' ? availableColumns : numericColumns),
+    [chartType, availableColumns, numericColumns]
+  );
+
+  const canSave = Boolean(
+    title &&
+    selectedDatasetId != null &&
+    xAxis &&
+    yAxisColumns.length > 0 &&
+    availableColumns.length > 0
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -145,6 +257,32 @@ export function AddChartDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {/* Dataset */}
+          <div className="space-y-2">
+            <Label htmlFor="dataset">Dataset</Label>
+            <Select
+              value={selectedDatasetId != null ? String(selectedDatasetId) : undefined}
+              onValueChange={(value) => setSelectedDatasetId(Number(value))}
+            >
+              <SelectTrigger id="dataset">
+                <SelectValue placeholder="Select dataset" />
+              </SelectTrigger>
+              <SelectContent>
+                {datasets.length === 0 ? (
+                  <div className="p-2 text-sm text-text-muted">
+                    No datasets available
+                  </div>
+                ) : (
+                  datasets.map((ds) => (
+                    <SelectItem key={ds.id} value={ds.id.toString()}>
+                      {ds.label}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="title">Chart Title</Label>
@@ -170,13 +308,14 @@ export function AddChartDialog({
           {/* Chart Type Selection */}
           <div className="space-y-2">
             <Label>Chart Type</Label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
               {CHART_TYPES.map(type => {
                 const IconComponent = type.icon;
                 return (
                   <button
                     key={type.value}
                     onClick={() => setChartType(type.value)}
+                    type="button"
                     className={`p-4 rounded-lg border-2 transition-colors text-left ${
                       chartType === type.value
                         ? 'border-primary bg-primary/10'
@@ -195,28 +334,49 @@ export function AddChartDialog({
           {/* X-Axis */}
           <div className="space-y-2">
             <Label htmlFor="xAxis">X-Axis (Horizontal)</Label>
-            <Select value={xAxis} onValueChange={setXAxis}>
-              <SelectTrigger id="xAxis">
-                <SelectValue placeholder="Select column for X-axis" />
-              </SelectTrigger>
-              <SelectContent>
-                {columns.map(col => (
-                  <SelectItem key={col.name} value={col.name}>
-                    <div>
-                      <span className="font-medium">{col.name}</span>
-                      <span className="text-xs text-gray-500 ml-2">({col.type})</span>
+            <div className="space-y-2">
+              <Select value={xAxis} onValueChange={setXAxis} disabled={columnsLoading || availableColumns.length === 0}>
+                <SelectTrigger id="xAxis">
+                  <SelectValue placeholder={columnsLoading ? "Loading columns..." : "Select column for X-axis"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {columnsLoading ? (
+                    <div className="flex items-center gap-2 p-2 text-sm text-text-muted">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading columns...
                     </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  ) : availableColumns.length === 0 ? (
+                    <div className="p-2 text-sm text-gray-500">
+                      No columns available
+                    </div>
+                  ) : (
+                    availableColumns.map(col => (
+                      <SelectItem key={col.name} value={col.name}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{col.name}</span>
+                          <span className="text-xs text-gray-500 capitalize">{col.type}</span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {columnsError ? (
+                <p className="text-xs text-danger">{columnsError}</p>
+              ) : null}
+            </div>
           </div>
 
           {/* Y-Axis - Multiple Selection */}
           <div className="space-y-2">
             <Label>Y-Axis Columns (Vertical) - Select one or more</Label>
             <div className="border rounded-lg p-4 max-h-60 overflow-y-auto space-y-2">
-              {availableYAxisColumns.length === 0 ? (
+              {columnsLoading ? (
+                <div className="flex items-center justify-center gap-2 text-sm text-text-muted">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading columns...
+                </div>
+              ) : availableYAxisColumns.length === 0 ? (
                 <div className="text-sm text-gray-500 text-center py-4">
                   No suitable columns available
                 </div>
@@ -252,6 +412,7 @@ export function AddChartDialog({
                     <button
                       onClick={() => toggleYAxisColumn(colName)}
                       className="hover:bg-primary/20 rounded-full p-0.5"
+                      type="button"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -318,7 +479,7 @@ export function AddChartDialog({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none">No filter</SelectItem>
-                    {columns.map(col => (
+                    {availableColumns.map(col => (
                       <SelectItem key={col.name} value={col.name}>
                         <div>
                           <span className="font-medium">{col.name}</span>
@@ -339,7 +500,7 @@ export function AddChartDialog({
               </div>
             </div>
             <p className="text-xs text-gray-500">
-              Filter pins the chart to rows where the selected column equals the value you enter.
+              Filter pins the chart to rows where the selected column matches the value you enter.
             </p>
           </div>
 
@@ -347,7 +508,8 @@ export function AddChartDialog({
           {xAxis && yAxisColumns.length > 0 && (
             <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
               <p className="text-sm text-blue-800 dark:text-blue-200">
-                <strong>Preview:</strong> This will create a {chartType} chart showing{' '}
+                <strong>Preview:</strong> {selectedDatasetLabel ? `${selectedDatasetLabel} → ` : null}
+                This will create a {chartType} chart showing{' '}
                 {yAxisColumns.length === 1 ? (
                   <>
                     <strong>{yAxisColumns[0]}</strong> {aggregation !== 'none' && `(${aggregation})`}
@@ -371,7 +533,7 @@ export function AddChartDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={!title || !xAxis || yAxisColumns.length === 0}>
+          <Button onClick={handleSave} disabled={!canSave}>
             {existingChart ? 'Update' : 'Add'} Chart
           </Button>
         </div>

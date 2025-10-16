@@ -94,7 +94,8 @@ export const api = {
 
   // Dashboard configuration endpoints
   dashboards: {
-    getConfig: (datasetId: number) => authenticatedFetch(`/api/dashboards/${datasetId}`),
+    list: () => authenticatedFetch("/api/dashboards"),
+    getById: (id: number) => authenticatedFetch(`/api/dashboards/${id}`),
     saveConfig: async (config: any) => {
       const sessionId = localStorage.getItem('sessionId');
       const response = await fetch('/api/dashboards', {

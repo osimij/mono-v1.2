@@ -1,15 +1,17 @@
 import type { DashboardMetricCard } from "@shared/schema";
 import { ChevronRight } from "lucide-react";
 import { calculateMetric, formatValue } from "@/lib/dataAnalyzer";
+import { cn } from "@/lib/utils";
 
 interface DynamicMetricCardProps {
   metric: DashboardMetricCard;
   data: any[];
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  readOnly?: boolean;
 }
 
-export function DynamicMetricCard({ metric, data, onEdit, onDelete: _onDelete }: DynamicMetricCardProps) {
+export function DynamicMetricCard({ metric, data, onEdit, readOnly }: DynamicMetricCardProps) {
   const value = calculateMetric(data, metric.column, metric.calculation);
   const formattedValue = formatValue(value, metric.format);
 
@@ -21,17 +23,27 @@ export function DynamicMetricCard({ metric, data, onEdit, onDelete: _onDelete }:
       ? formatValue(comparisonColumnValue, metric.format)
       : undefined;
 
+  const isInteractive = Boolean(onEdit) && !readOnly;
+
+  const Container = isInteractive ? "button" : "div";
+
   return (
-    <button
-      type="button"
-      onClick={onEdit}
-      className="group relative flex h-[108px] w-full max-w-[220px] flex-col cursor-pointer select-none rounded-xl bg-surface-muted p-4 pe-3 shadow-xs border border-border transition-all duration-200 [@media(hover:hover)]:hover:-translate-y-0.5 [@media(hover:hover)]:hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+    <Container
+      {...(isInteractive ? { type: "button" as const, onClick: onEdit } : {})}
+      className={cn(
+        "group relative flex h-[108px] w-full max-w-[220px] flex-col select-none rounded-xl bg-surface-muted p-4 pe-3 shadow-xs border border-border transition-all duration-200",
+        isInteractive
+          ? "cursor-pointer [@media(hover:hover)]:hover:-translate-y-0.5 [@media(hover:hover)]:hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+          : "cursor-default"
+      )}
     >
       <div className="mb-2 flex h-4 items-center justify-between gap-1 text-left text-xs font-medium text-text-muted sm:text-sm md:text-base">
         <span className="truncate">{metric.title}</span>
-        <div className="text-base text-text-subtle transition-opacity duration-200 group-hover:opacity-0">
-          <ChevronRight className="h-4 w-4" />
-        </div>
+        {isInteractive ? (
+          <div className="text-base text-text-subtle transition-opacity duration-200 group-hover:opacity-0">
+            <ChevronRight className="h-4 w-4" />
+          </div>
+        ) : null}
       </div>
 
       <div className="flex flex-nowrap items-baseline gap-2 text-text-primary">
@@ -57,6 +69,6 @@ export function DynamicMetricCard({ metric, data, onEdit, onDelete: _onDelete }:
           <span>{Math.abs(metric.comparisonValue).toLocaleString()}%</span>
         </div>
       )}
-    </button>
+    </Container>
   );
 }

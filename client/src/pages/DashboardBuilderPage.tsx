@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,49 +12,16 @@ import { DynamicMetricCard } from "@/components/DynamicMetricCard";
 import { DynamicChart } from "@/components/DynamicChart";
 import { AddMetricCardDialog } from "@/components/AddMetricCardDialog";
 import { AddChartDialog } from "@/components/AddChartDialog";
-import { PageHeader, PageSection, PageShell } from "@/components/layout/Page";
+import { PageSection, PageShell } from "@/components/layout/Page";
 import { cn } from "@/lib/utils";
+import { getDatasetLabel, generateDashboardName, type DatasetDetail, type DashboardDraft } from "@/lib/dashboardUtils";
 import type { DashboardChart, DashboardConfig, DashboardMetricCard, Dataset } from "@shared/schema";
 
-type DashboardDraft = {
-  id: number | null;
-  name: string;
-  metrics: DashboardMetricCard[];
-  charts: DashboardChart[];
-};
-
-interface DatasetDetail {
-  dataset: Dataset;
-  analysis: ReturnType<typeof analyzeDataset> | null;
-}
-
-const getDatasetLabel = (dataset: Dataset) => dataset.originalName || dataset.filename;
-
-const generateDashboardName = (existing?: DashboardConfig[]): string => {
-  const base = "Untitled dashboard";
-  if (!existing || existing.length === 0) {
-    return base;
-  }
-
-  const existingNames = new Set(existing.map(item => item.name));
-  if (!existingNames.has(base)) {
-    return base;
-  }
-
-  let counter = 2;
-  while (existingNames.has(`${base} ${counter}`)) {
-    counter += 1;
-  }
-
-  return `${base} ${counter}`;
-};
-
-export function AnalysisOverviewPage() {
+export function DashboardBuilderPage() {
   const queryClient = useQueryClient();
   const initializedRef = useRef(false);
   const datasetDetailsRef = useRef<Record<number, DatasetDetail>>({});
 
-  const [selectedDashboardId, setSelectedDashboardId] = useState<number | null>(null);
   const [builderSelectionId, setBuilderSelectionId] = useState<number | null>(null);
   const [dashboardDraft, setDashboardDraft] = useState<DashboardDraft | null>(null);
   const [draftDirty, setDraftDirty] = useState(false);
@@ -238,26 +205,6 @@ export function AnalysisOverviewPage() {
     [normalizeDashboard]
   );
 
-  const viewerDashboard = useMemo(() => {
-    if (!selectedDashboardId) return null;
-    const fromDraft = dashboardDraft && dashboardDraft.id === selectedDashboardId ? dashboardDraft : null;
-    if (fromDraft) return fromDraft;
-
-    const source = dashboardsList.find((dashboard) => dashboard.id === selectedDashboardId);
-    return normalizeDashboard(source);
-  }, [dashboardDraft, dashboardsList, normalizeDashboard, selectedDashboardId]);
-
-  const viewerDatasetIds = useMemo(() => {
-    const ids = new Set<number>();
-    viewerDashboard?.metrics.forEach((metric) => {
-      if (metric.datasetId) ids.add(metric.datasetId);
-    });
-    viewerDashboard?.charts.forEach((chart) => {
-      if (chart.datasetId) ids.add(chart.datasetId);
-    });
-    return Array.from(ids);
-  }, [viewerDashboard]);
-
   const builderDatasetIds = useMemo(() => {
     const ids = new Set<number>();
     dashboardDraft?.metrics.forEach((metric) => {
@@ -269,24 +216,18 @@ export function AnalysisOverviewPage() {
     return Array.from(ids);
   }, [dashboardDraft]);
 
-  const datasetIdsToEnsure = useMemo(
-    () => Array.from(new Set([...viewerDatasetIds, ...builderDatasetIds])),
-    [builderDatasetIds, viewerDatasetIds]
-  );
-
   useEffect(() => {
-    datasetIdsToEnsure.forEach((datasetId) => {
+    builderDatasetIds.forEach((datasetId) => {
       if (!datasetId) return;
       ensureDatasetDetails(datasetId).catch(() => {
         // error handled in ensureDatasetDetails
       });
     });
-  }, [datasetIdsToEnsure, ensureDatasetDetails]);
+  }, [builderDatasetIds, ensureDatasetDetails]);
 
   useEffect(() => {
     if (!dashboardsList.length) {
       initializedRef.current = false;
-      setSelectedDashboardId(null);
       setBuilderSelectionId(null);
       setDashboardDraft(null);
       return;
@@ -295,15 +236,9 @@ export function AnalysisOverviewPage() {
     if (!initializedRef.current) {
       const first = dashboardsList[0];
       loadDashboardIntoDraft(first);
-      setSelectedDashboardId(first.id);
       initializedRef.current = true;
-    } else if (
-      selectedDashboardId &&
-      !dashboardsList.some((dashboard) => dashboard.id === selectedDashboardId)
-    ) {
-      setSelectedDashboardId(dashboardsList[0].id);
     }
-  }, [dashboardsList, loadDashboardIntoDraft, selectedDashboardId]);
+  }, [dashboardsList, loadDashboardIntoDraft]);
 
   useEffect(() => {
     if (!dashboardDraft || !dashboardDraft.id || !draftDirty) return;
@@ -350,13 +285,6 @@ export function AnalysisOverviewPage() {
     return () => window.clearTimeout(timeoutId);
   }, [dashboardDraft, draftDirty, queryClient]);
 
-  const handleViewerSelectionChange = useCallback((value: string) => {
-    const dashboardId = Number(value);
-    if (!Number.isNaN(dashboardId)) {
-      setSelectedDashboardId(dashboardId);
-    }
-  }, []);
-
   const handleBuilderSelectionChange = useCallback(
     (value: string) => {
       const dashboardId = Number(value);
@@ -365,7 +293,6 @@ export function AnalysisOverviewPage() {
       const target = dashboardsList.find((dashboard) => dashboard.id === dashboardId);
       if (target) {
         loadDashboardIntoDraft(target);
-        setSelectedDashboardId(dashboardId);
       }
     },
     [dashboardsList, loadDashboardIntoDraft]
@@ -387,7 +314,6 @@ export function AnalysisOverviewPage() {
       });
 
       loadDashboardIntoDraft(saved);
-      setSelectedDashboardId(saved.id);
       initializedRef.current = true;
     } catch (error) {
       console.error("Failed to create dashboard:", error);
@@ -526,230 +452,46 @@ export function AnalysisOverviewPage() {
 
   return (
     <PageShell padding="lg">
-      <PageHeader
-        title="Overview dashboards"
-        description="Select an existing dashboard to explore or craft new multi-dataset views tailored to your workflows."
-      />
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <PageSection
-          surface="card"
-          title="Dashboard viewer"
-          description="Choose a saved dashboard to explore its live metrics and charts."
-          contentClassName="gap-4"
-        >
-          {dashboardsList.length === 0 ? (
-            <p className="text-sm text-text-muted">
-              No dashboards yet. Create one from the builder to get started.
-            </p>
-          ) : (
-            <Select
-              value={selectedDashboardId != null ? String(selectedDashboardId) : undefined}
-              onValueChange={handleViewerSelectionChange}
-            >
-              <SelectTrigger className="w-full md:w-[320px]">
-                <SelectValue placeholder="Select a dashboard" />
-              </SelectTrigger>
-              <SelectContent>
-                {dashboardsList.map((dashboard) => (
-                  <SelectItem key={dashboard.id} value={dashboard.id.toString()}>
-                    {dashboard.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </PageSection>
-
-        <PageSection
-          surface="card"
-          title="Dashboard builder"
-          description="Create new dashboards or switch to one you want to refine."
-          contentClassName="gap-4"
-          actions={
-            <Button onClick={handleCreateDashboard} disabled={isCreatingDashboard}>
-              <Plus className="mr-2 h-4 w-4" />
-              {isCreatingDashboard ? "Creating…" : "Create new dashboard"}
-            </Button>
-          }
-        >
-          {dashboardsList.length === 0 ? (
-            <p className="text-sm text-text-muted">
-              Click &ldquo;Create new dashboard&rdquo; to start building your first view.
-            </p>
-          ) : (
-            <Select
-              value={builderSelectionId != null ? String(builderSelectionId) : undefined}
-              onValueChange={handleBuilderSelectionChange}
-            >
-              <SelectTrigger className="w-full md:w-[320px]">
-                <SelectValue placeholder="Select a dashboard to edit" />
-              </SelectTrigger>
-              <SelectContent>
-                {dashboardsList.map((dashboard) => (
-                  <SelectItem key={dashboard.id} value={dashboard.id.toString()}>
-                    {dashboard.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </PageSection>
-      </div>
 
       <PageSection
         surface="card"
-        title={viewerDashboard ? viewerDashboard.name : "Select a dashboard"}
-        description={
-          viewerDashboard
-            ? "Metric cards and visualizations update automatically as your data changes."
-            : "Pick a dashboard from the viewer to inspect its latest metrics."
+        title="Dashboard Selection"
+        description="Create new dashboards or switch to one you want to refine."
+        contentClassName="gap-4"
+        actions={
+          <Button onClick={handleCreateDashboard} disabled={isCreatingDashboard}>
+            <Plus className="mr-2 h-4 w-4" />
+            {isCreatingDashboard ? "Creating…" : "Create new dashboard"}
+          </Button>
         }
-        contentClassName="gap-6"
       >
-        {viewerDashboard ? (
-          <>
-            {viewerDashboard.metrics.length > 0 ? (
-              <div className="grid auto-rows-fr gap-5 justify-start [grid-template-columns:repeat(auto-fit,minmax(220px,max-content))]">
-                {viewerDashboard.metrics.map((metric) => {
-                  const detail = datasetDetailsCache[metric.datasetId];
-                  const error = datasetErrors[metric.datasetId];
-
-                  if (error) {
-                    return (
-                      <div
-                        key={metric.id}
-                        className="flex h-[108px] w-full max-w-[220px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/60 bg-surface-muted/40 p-4 text-center text-xs text-danger"
-                      >
-                        <span className="font-medium">Dataset unavailable</span>
-                        <span className="text-[10px] text-text-muted">{error}</span>
-                      </div>
-                    );
-                  }
-
-                  if (!detail) {
-                    return (
-                      <div
-                        key={metric.id}
-                        className="flex h-[108px] w-full max-w-[220px] items-center justify-center rounded-xl border border-dashed border-border/60 bg-surface-muted/40"
-                      >
-                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                      </div>
-                    );
-                  }
-
-                  const data = (detail.dataset.data ?? []) as any[];
-                  const datasetLabel = metric.datasetName ?? datasetLabelMap.get(metric.datasetId);
-
-                  return (
-                    <div key={metric.id} className="flex flex-col gap-2">
-                      <Badge variant="outline" className="self-start text-[10px] font-semibold uppercase tracking-wide">
-                        {datasetLabel ?? `Dataset ${metric.datasetId}`}
-                      </Badge>
-                      <DynamicMetricCard
-                        metric={metric}
-                        data={data}
-                        onEdit={() => {}}
-                        onDelete={() => {}}
-                        readOnly
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            ) : null}
-
-            {viewerDashboard.charts.length > 0 ? (
-              <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-                {viewerDashboard.charts.map((chart) => {
-                  const detail = datasetDetailsCache[chart.datasetId];
-                  const error = datasetErrors[chart.datasetId];
-
-                  const colSpan =
-                    chart.size === "large"
-                      ? "lg:col-span-12"
-                      : chart.size === "small"
-                        ? "lg:col-span-4"
-                        : "lg:col-span-6";
-
-                  if (error) {
-                    return (
-                      <div
-                        key={chart.id}
-                        className={cn(
-                          "col-span-1 flex min-h-[240px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border/60 bg-surface-muted/40 p-6 text-center text-sm text-danger",
-                          colSpan
-                        )}
-                      >
-                        <span className="font-semibold">Unable to load dataset</span>
-                        <span className="text-xs text-text-muted">{error}</span>
-                      </div>
-                    );
-                  }
-
-                  if (!detail) {
-                    return (
-                      <div
-                        key={chart.id}
-                        className={cn(
-                          "col-span-1 flex min-h-[240px] items-center justify-center rounded-2xl border border-dashed border-border/60 bg-surface-muted/40",
-                          colSpan
-                        )}
-                      >
-                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                      </div>
-                    );
-                  }
-
-                  const data = (detail.dataset.data ?? []) as any[];
-                  const datasetAnalysis = detail.analysis;
-                  const datasetLabel = chart.datasetName ?? datasetLabelMap.get(chart.datasetId);
-
-                  return (
-                    <div key={chart.id} className={cn("col-span-1 flex flex-col gap-3", colSpan)}>
-                      <Badge variant="outline" className="self-start text-[10px] font-semibold uppercase tracking-wide">
-                        {datasetLabel ?? `Dataset ${chart.datasetId}`}
-                      </Badge>
-                      <DynamicChart
-                        chart={chart}
-                        data={data}
-                        datasetAnalysis={datasetAnalysis ?? undefined}
-                        onUpdate={() => {}}
-                        onEdit={() => {}}
-                        onDelete={() => {}}
-                        readOnly
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            ) : null}
-
-            {viewerDashboard.metrics.length === 0 && viewerDashboard.charts.length === 0 ? (
-              <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-border/60 bg-surface-muted/60 px-10 py-12 text-center">
-                <BarChart3 className="h-12 w-12 text-text-subtle" />
-                <div className="space-y-2">
-                  <h3 className="text-lg font-semibold text-text-primary">
-                    Nothing to display yet
-                  </h3>
-                  <p className="max-w-xl text-sm text-text-muted">
-                    Build your dashboard by adding metric cards and charts from the builder on the right.
-                  </p>
-                </div>
-              </div>
-            ) : null}
-          </>
+        {dashboardsList.length === 0 ? (
+          <p className="text-sm text-text-muted">
+            Click &ldquo;Create new dashboard&rdquo; to start building your first view.
+          </p>
         ) : (
-          <div className="flex min-h-[200px] items-center justify-center rounded-2xl border border-dashed border-border/60 bg-surface-muted/40 text-sm text-text-muted">
-            Select a dashboard to preview its metrics and charts.
-          </div>
+          <Select
+            value={builderSelectionId != null ? String(builderSelectionId) : undefined}
+            onValueChange={handleBuilderSelectionChange}
+          >
+            <SelectTrigger className="w-full md:w-[320px]">
+              <SelectValue placeholder="Select a dashboard to edit" />
+            </SelectTrigger>
+            <SelectContent>
+              {dashboardsList.map((dashboard) => (
+                <SelectItem key={dashboard.id} value={dashboard.id.toString()}>
+                  {dashboard.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
       </PageSection>
 
       <PageSection
         surface="card"
         title={dashboardDraft ? `Editing ${dashboardDraft.name}` : "Select a dashboard to edit"}
-        description="Attach cards and charts to different datasets, organize them, and we’ll autosave every change."
+        description="Attach cards and charts to different datasets, organize them, and we'll autosave every change."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Button onClick={() => setShowAddMetric(true)} className="gap-2" disabled={!dashboardDraft}>
@@ -886,7 +628,7 @@ export function AnalysisOverviewPage() {
           </>
         ) : (
           <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border/60 bg-surface-muted/40 text-center text-sm text-text-muted">
-            Select a dashboard from the builder controls above or create a new one to start editing.
+            Select a dashboard from above or create a new one to start editing.
           </div>
         )}
       </PageSection>
@@ -921,3 +663,4 @@ export function AnalysisOverviewPage() {
     </PageShell>
   );
 }
+

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Upload, FileText, Database, Shield, X, CheckCircle, AlertCircle } from "lucide-react";
 import { api } from "@/lib/api";
-import { PageHeader, PageSection, PageShell } from "@/components/layout/Page";
+import { PageSection, PageShell } from "@/components/layout/Page";
 
 interface UploadedFile {
   id: string;
@@ -145,13 +145,7 @@ export function DataUploadPage() {
   };
 
   return (
-    <PageShell padding="lg" width="wide">
-      <PageHeader
-        eyebrow="Datasets"
-        title="Upload data"
-        description="Import CSV, Excel, or JSON files to start exploring your dataset."
-      />
-
+    <PageShell padding="lg" width="full">
       <PageSection surface="transparent" contentClassName="space-y-8">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Card className="transition-shadow hover:shadow-sm">

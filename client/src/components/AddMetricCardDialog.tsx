@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DollarSign, TrendingUp, Users, BarChart3, Activity, Target } from "lucide-react";
+import { DollarSign, TrendingUp, Users, BarChart3, Activity, Target, Loader2 } from "lucide-react";
 import type { DashboardMetricCard } from "@shared/schema";
 import type { ColumnInfo } from "@/lib/dataAnalyzer";
 
@@ -12,7 +12,8 @@ interface AddMetricCardDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (metric: DashboardMetricCard) => void;
-  columns: ColumnInfo[];
+  datasets: Array<{ id: number; label: string }>;
+  resolveDatasetColumns: (datasetId: number) => Promise<ColumnInfo[]>;
   existingMetric?: DashboardMetricCard;
 }
 
@@ -54,9 +55,14 @@ export function AddMetricCardDialog({
   open, 
   onOpenChange, 
   onSave, 
-  columns,
+  datasets,
+  resolveDatasetColumns,
   existingMetric 
 }: AddMetricCardDialogProps) {
+  const [selectedDatasetId, setSelectedDatasetId] = useState<number | null>(existingMetric?.datasetId ?? (datasets[0]?.id ?? null));
+  const [availableColumns, setAvailableColumns] = useState<ColumnInfo[]>([]);
+  const [columnsLoading, setColumnsLoading] = useState(false);
+  const [columnsError, setColumnsError] = useState<string | null>(null);
   const [title, setTitle] = useState(existingMetric?.title || "");
   const [column, setColumn] = useState(existingMetric?.column || "");
   const [calculation, setCalculation] = useState<string>(existingMetric?.calculation || "sum");
@@ -64,11 +70,72 @@ export function AddMetricCardDialog({
   const [icon, setIcon] = useState(existingMetric?.icon || "chart");
   const [color, setColor] = useState(existingMetric?.color || "blue");
 
+  const selectedDatasetLabel = useMemo(() => {
+    if (selectedDatasetId == null) return undefined;
+    return datasets.find((ds) => ds.id === selectedDatasetId)?.label;
+  }, [datasets, selectedDatasetId]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    if (existingMetric) {
+      setSelectedDatasetId(existingMetric.datasetId);
+      setTitle(existingMetric.title);
+      setColumn(existingMetric.column);
+      setCalculation(existingMetric.calculation);
+      setFormat(existingMetric.format || "number");
+      setIcon(existingMetric.icon || "chart");
+      setColor(existingMetric.color || "blue");
+    } else {
+      resetForm();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, existingMetric?.id]);
+
+  useEffect(() => {
+    if (selectedDatasetId == null) {
+      setAvailableColumns([]);
+      return;
+    }
+
+    let isActive = true;
+    setColumnsLoading(true);
+    setColumnsError(null);
+
+    resolveDatasetColumns(selectedDatasetId)
+      .then((columns) => {
+        if (!isActive) return;
+        setAvailableColumns(columns);
+        if (columns.length > 0 && !columns.some((c) => c.name === column)) {
+          setColumn(columns[0].name);
+        }
+      })
+      .catch(() => {
+        if (!isActive) return;
+        setAvailableColumns([]);
+        setColumnsError("Unable to load dataset columns. Please try again.");
+      })
+      .finally(() => {
+        if (isActive) {
+          setColumnsLoading(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDatasetId, resolveDatasetColumns]);
+
   const handleSave = () => {
-    if (!title || !column) return;
+    if (!title || !column || selectedDatasetId == null) return;
 
     const metric: DashboardMetricCard = {
       id: existingMetric?.id || `metric_${Date.now()}`,
+      datasetId: selectedDatasetId,
+      datasetName: selectedDatasetLabel,
       title,
       column,
       calculation: calculation as any,
@@ -91,16 +158,23 @@ export function AddMetricCardDialog({
       setFormat("number");
       setIcon("chart");
       setColor("blue");
+      setSelectedDatasetId(datasets[0]?.id ?? null);
+      setColumnsError(null);
     }
   };
 
-  const numericColumns = columns.filter(c => c.type === 'number');
-  const allColumns = columns;
+  const numericColumns = useMemo(
+    () => availableColumns.filter((c) => c.type === 'number'),
+    [availableColumns]
+  );
 
   // Determine which columns to show based on calculation
-  const availableColumns = ['count', 'distinct_count'].includes(calculation) 
-    ? allColumns 
-    : numericColumns;
+  const filteredColumns = useMemo(() => {
+    if (['count', 'distinct_count'].includes(calculation)) {
+      return availableColumns;
+    }
+    return numericColumns;
+  }, [availableColumns, calculation, numericColumns]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -115,6 +189,32 @@ export function AddMetricCardDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {/* Dataset */}
+          <div className="space-y-2">
+            <Label htmlFor="dataset">Dataset</Label>
+            <Select
+              value={selectedDatasetId != null ? String(selectedDatasetId) : undefined}
+              onValueChange={(value) => setSelectedDatasetId(Number(value))}
+            >
+              <SelectTrigger id="dataset">
+                <SelectValue placeholder="Select dataset" />
+              </SelectTrigger>
+              <SelectContent>
+                {datasets.length === 0 ? (
+                  <div className="p-2 text-sm text-text-muted">
+                    No datasets available
+                  </div>
+                ) : (
+                  datasets.map((ds) => (
+                    <SelectItem key={ds.id} value={ds.id.toString()}>
+                      {ds.label}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="title">Card Title</Label>
@@ -149,27 +249,37 @@ export function AddMetricCardDialog({
           {/* Column Selection */}
           <div className="space-y-2">
             <Label htmlFor="column">Column</Label>
-            <Select value={column} onValueChange={setColumn}>
-              <SelectTrigger id="column">
-                <SelectValue placeholder="Select a column" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableColumns.length === 0 ? (
-                  <div className="p-2 text-sm text-text-muted">
-                    No {['count', 'distinct_count'].includes(calculation) ? '' : 'numeric '}columns available
-                  </div>
-                ) : (
-                  availableColumns.map(col => (
-                    <SelectItem key={col.name} value={col.name}>
-                      <div>
-                        <span className="font-medium">{col.name}</span>
-                        <span className="text-xs text-text-muted ml-2">({col.type})</span>
-                      </div>
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              <Select value={column} onValueChange={setColumn} disabled={columnsLoading || filteredColumns.length === 0}>
+                <SelectTrigger id="column">
+                  <SelectValue placeholder={columnsLoading ? "Loading columns..." : "Select a column"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {columnsLoading ? (
+                    <div className="flex items-center gap-2 p-2 text-sm text-text-muted">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading columns...
+                    </div>
+                  ) : filteredColumns.length === 0 ? (
+                    <div className="p-2 text-sm text-text-muted">
+                      No {['count', 'distinct_count'].includes(calculation) ? '' : 'numeric '}columns available
+                    </div>
+                  ) : (
+                    filteredColumns.map(col => (
+                      <SelectItem key={col.name} value={col.name}>
+                        <div>
+                          <span className="font-medium">{col.name}</span>
+                          <span className="text-xs text-text-muted ml-2">({col.type})</span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {columnsError ? (
+                <p className="text-xs text-danger">{columnsError}</p>
+              ) : null}
+            </div>
           </div>
 
           {/* Format */}
@@ -247,4 +357,3 @@ export function AddMetricCardDialog({
     </Dialog>
   );
 }
-

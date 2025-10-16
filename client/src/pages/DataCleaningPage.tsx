@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { DataPreprocessor } from "@/components/DataPreprocessor";
 import { Database, Search as SearchIcon, Eye, Table as TableIcon } from "lucide-react";
 import { api } from "@/lib/api";
-import { PageHeader, PageSection, PageShell } from "@/components/layout/Page";
+import { PageSection, PageShell } from "@/components/layout/Page";
 import type { Dataset } from "@/types";
 
 const CLEANING_STEPS = [
@@ -128,12 +128,7 @@ export function DataCleaningPage() {
 
   if (showPreprocessor && selectedDataset) {
     return (
-      <PageShell padding="lg" width="wide">
-        <PageHeader
-          eyebrow="Preparation"
-          title="Data cleaning"
-          description="Apply configurable cleaning pipelines and export ready-to-use datasets."
-        />
+      <PageShell padding="lg" width="full">
         <PageSection surface="transparent">
           <DataPreprocessor
             onComplete={handlePreprocessingComplete}
@@ -147,12 +142,7 @@ export function DataCleaningPage() {
   }
 
   return (
-    <PageShell padding="lg" width="wide">
-      <PageHeader
-        eyebrow="Preparation"
-        title="Data cleaning"
-        description="Select a dataset, configure cleaning options, and export the polished result."
-      />
+    <PageShell padding="lg" width="full">
 
       <PageSection surface="transparent" contentClassName="space-y-6">
         <Card>

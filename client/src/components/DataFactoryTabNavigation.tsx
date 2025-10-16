@@ -10,19 +10,18 @@ interface Tab {
   path: string;
 }
 
-interface AnalyticsTabNavigationProps {
+interface DataFactoryTabNavigationProps {
   currentPath: string;
 }
 
-const ANALYTICS_TABS: Tab[] = [
-  { id: "trends", label: "Trend Analysis", path: "/analysis/trends" },
-  { id: "correlation", label: "Correlation Analysis", path: "/analysis/correlation" },
-  { id: "distribution", label: "Distribution Analysis", path: "/analysis/distribution" },
-  { id: "geographic", label: "Geographic Analysis", path: "/analysis/geographic" },
-  { id: "reports", label: "Custom Reports", path: "/analysis/reports" },
+const DATA_FACTORY_TABS: Tab[] = [
+  { id: "preview", label: "Data Preview", path: "/data/preview" },
+  { id: "upload", label: "Data Upload", path: "/data/upload" },
+  { id: "preprocessing", label: "Smart Preprocessing", path: "/data/cleaning" },
+  { id: "filtering", label: "Manual Filtering", path: "/data/filtering" },
 ];
 
-export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationProps) {
+export function DataFactoryTabNavigation({ currentPath }: DataFactoryTabNavigationProps) {
   const [, setLocation] = useLocation();
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
@@ -58,9 +57,9 @@ export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationPr
   };
 
   const focusAndActivateTab = useCallback((index: number) => {
-    const total = ANALYTICS_TABS.length;
+    const total = DATA_FACTORY_TABS.length;
     const normalizedIndex = (index + total) % total;
-    const tab = ANALYTICS_TABS[normalizedIndex];
+    const tab = DATA_FACTORY_TABS[normalizedIndex];
 
     tabRefs.current[normalizedIndex]?.focus();
     setLocation(tab.path);
@@ -85,12 +84,12 @@ export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationPr
           break;
         case "End":
           event.preventDefault();
-          focusAndActivateTab(ANALYTICS_TABS.length - 1);
+          focusAndActivateTab(DATA_FACTORY_TABS.length - 1);
           break;
         case " ":
         case "Enter":
           event.preventDefault();
-          setLocation(ANALYTICS_TABS[index].path);
+          setLocation(DATA_FACTORY_TABS[index].path);
           break;
         default:
           break;
@@ -103,7 +102,7 @@ export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationPr
     <nav 
       className="sticky top-0 z-30 border-b border-border/60 bg-surface-elevated/80 backdrop-blur-md"
       role="navigation"
-      aria-label="Analytics Tabs"
+      aria-label="Data Factory Tabs"
     >
       <div className="flex items-center justify-center">
         {/* Left Arrow Button */}
@@ -126,9 +125,9 @@ export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationPr
           style={{ scrollPaddingLeft: "36px", scrollPaddingRight: "36px" }}
         >
           <div className="flex items-center justify-center min-w-max px-2" role="tablist">
-            {ANALYTICS_TABS.map((tab, tabIndex) => {
+            {DATA_FACTORY_TABS.map((tab, tabIndex) => {
               const isActive = currentPath === tab.path;
-              const tabId = `analytics-tab-${tab.id}`;
+              const tabId = `data-tab-${tab.id}`;
               
               return (
                 <button
@@ -136,7 +135,7 @@ export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationPr
                   onClick={() => setLocation(tab.path)}
                   role="tab"
                   aria-selected={isActive}
-                  aria-controls="analytics-content-region"
+                  aria-controls="data-factory-content-region"
                   id={tabId}
                   tabIndex={isActive ? 0 : -1}
                   ref={element => {
@@ -180,3 +179,4 @@ export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationPr
     </nav>
   );
 }
+

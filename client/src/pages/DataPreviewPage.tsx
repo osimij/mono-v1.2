@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger
 } from "@/components/ui/alert-dialog";
-import { PageHeader, PageSection, PageShell } from "@/components/layout/Page";
+import { PageSection, PageShell } from "@/components/layout/Page";
 import { api } from "@/lib/api";
 import type { Dataset } from "@/types";
 
@@ -231,18 +231,10 @@ export function DataPreviewPage() {
     });
   };
 
-  const renderHeader = () => (
-    <PageHeader
-      eyebrow="Datasets"
-      title="Data preview"
-      description="Find, filter, and inspect uploaded datasets before analysis."
-    />
-  );
 
   if (error) {
     return (
-      <PageShell padding="lg" width="wide">
-        {renderHeader()}
+      <PageShell padding="lg" width="full">
         <PageSection>
           <Card>
             <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
@@ -260,9 +252,7 @@ export function DataPreviewPage() {
   }
 
   return (
-    <PageShell padding="lg" width="wide">
-      {renderHeader()}
-
+    <PageShell padding="lg" width="full">
       <PageSection surface="transparent" contentClassName="space-y-6">
         <Card>
           <CardContent className="space-y-4 p-4">
@@ -535,7 +525,7 @@ export function DataPreviewPage() {
                         variant="outline"
                         size="sm"
                         className="h-8 rounded-full text-xs"
-                        onClick={() => (window.location.href = "/data/analysis")}
+                        onClick={() => (window.location.href = "/dashboards")}
                       >
                         Validate
                       </Button>

@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { PageHeader, PageSection, PageShell } from "@/components/layout/Page";
+import { PageSection, PageShell } from "@/components/layout/Page";
 
 interface FilterCondition {
   id: string;
@@ -408,33 +408,7 @@ export function DataFilteringPage() {
   const previewRowCount = Math.min(filteredData.length, 50);
 
   return (
-    <PageShell padding="lg" width="wide" className="space-y-6">
-      <PageHeader
-        title="Data filtering"
-        description="Filter your datasets with intelligent controls."
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExport}
-              disabled={!filteredData.length}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Export
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSave}
-              disabled={!filteredData.length}
-            >
-              <Save className="mr-2 h-4 w-4" />
-              Save
-            </Button>
-          </div>
-        }
-      />
+    <PageShell padding="lg" width="full" className="space-y-6">
 
       <PageSection
         title="Build filters"

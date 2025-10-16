@@ -10,19 +10,16 @@ interface Tab {
   path: string;
 }
 
-interface AnalyticsTabNavigationProps {
+interface DashboardsTabNavigationProps {
   currentPath: string;
 }
 
-const ANALYTICS_TABS: Tab[] = [
-  { id: "trends", label: "Trend Analysis", path: "/analysis/trends" },
-  { id: "correlation", label: "Correlation Analysis", path: "/analysis/correlation" },
-  { id: "distribution", label: "Distribution Analysis", path: "/analysis/distribution" },
-  { id: "geographic", label: "Geographic Analysis", path: "/analysis/geographic" },
-  { id: "reports", label: "Custom Reports", path: "/analysis/reports" },
+const DASHBOARDS_TABS: Tab[] = [
+  { id: "viewer", label: "Dashboard Viewer", path: "/dashboards/viewer" },
+  { id: "builder", label: "Dashboard Builder", path: "/dashboards/builder" },
 ];
 
-export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationProps) {
+export function DashboardsTabNavigation({ currentPath }: DashboardsTabNavigationProps) {
   const [, setLocation] = useLocation();
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
@@ -58,9 +55,9 @@ export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationPr
   };
 
   const focusAndActivateTab = useCallback((index: number) => {
-    const total = ANALYTICS_TABS.length;
+    const total = DASHBOARDS_TABS.length;
     const normalizedIndex = (index + total) % total;
-    const tab = ANALYTICS_TABS[normalizedIndex];
+    const tab = DASHBOARDS_TABS[normalizedIndex];
 
     tabRefs.current[normalizedIndex]?.focus();
     setLocation(tab.path);
@@ -85,12 +82,12 @@ export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationPr
           break;
         case "End":
           event.preventDefault();
-          focusAndActivateTab(ANALYTICS_TABS.length - 1);
+          focusAndActivateTab(DASHBOARDS_TABS.length - 1);
           break;
         case " ":
         case "Enter":
           event.preventDefault();
-          setLocation(ANALYTICS_TABS[index].path);
+          setLocation(DASHBOARDS_TABS[index].path);
           break;
         default:
           break;
@@ -103,7 +100,7 @@ export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationPr
     <nav 
       className="sticky top-0 z-30 border-b border-border/60 bg-surface-elevated/80 backdrop-blur-md"
       role="navigation"
-      aria-label="Analytics Tabs"
+      aria-label="Dashboards Tabs"
     >
       <div className="flex items-center justify-center">
         {/* Left Arrow Button */}
@@ -126,9 +123,9 @@ export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationPr
           style={{ scrollPaddingLeft: "36px", scrollPaddingRight: "36px" }}
         >
           <div className="flex items-center justify-center min-w-max px-2" role="tablist">
-            {ANALYTICS_TABS.map((tab, tabIndex) => {
+            {DASHBOARDS_TABS.map((tab, tabIndex) => {
               const isActive = currentPath === tab.path;
-              const tabId = `analytics-tab-${tab.id}`;
+              const tabId = `dashboards-tab-${tab.id}`;
               
               return (
                 <button
@@ -136,7 +133,7 @@ export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationPr
                   onClick={() => setLocation(tab.path)}
                   role="tab"
                   aria-selected={isActive}
-                  aria-controls="analytics-content-region"
+                  aria-controls="dashboards-content-region"
                   id={tabId}
                   tabIndex={isActive ? 0 : -1}
                   ref={element => {
@@ -180,3 +177,4 @@ export function AnalyticsTabNavigation({ currentPath }: AnalyticsTabNavigationPr
     </nav>
   );
 }
+

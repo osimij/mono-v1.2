@@ -169,6 +169,8 @@ export interface FeatureImportance {
 // Dashboard configuration types
 export interface DashboardMetricCard {
   id: string;
+  datasetId: number;
+  datasetName?: string;
   title: string;
   column: string;
   calculation: 'sum' | 'average' | 'count' | 'max' | 'min' | 'median' | 'distinct_count';
@@ -235,6 +237,8 @@ export type TemporalBucketInterval =
 
 export interface DashboardChart {
   id: string;
+  datasetId: number;
+  datasetName?: string;
   title: string;
   description?: string;
   chartType: 'line' | 'bar' | 'pie' | 'area' | 'scatter' | 'horizontal_bar';
@@ -252,7 +256,7 @@ export interface DashboardChart {
 export interface DashboardConfig {
   id: number;
   userId: string;
-  datasetId: number;
+  datasetId?: number | null;
   name: string;
   metrics: DashboardMetricCard[];
   charts: DashboardChart[];

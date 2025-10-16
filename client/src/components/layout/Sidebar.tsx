@@ -30,50 +30,51 @@ interface SidebarProps {
   onToggleCollapse: () => void;
 }
 
-// Import SVG icons from Figma
-const iconHome = "/assets/fbf11a828979a0f5ab7cc2d3618ba684103cae34.svg";
-const iconDataFactory = "/assets/78a36aff6d4720f573e284e2a794fc73c1eb9847.svg";
-const iconFilter = "/assets/ea2be67c030c5b34db5eec6069c619cc98cf498a.svg";
-const iconAnalytics = "/assets/2980d4ff623ec9278ab141f87addace63b55ebad.svg";
-const iconML = "/assets/78c243b3c535f50bfccfa356d32ae948b47f9e42.svg";
-const iconAssistant = "/assets/3cea8c5b533f0411382a7d37879db8b8035a6df5.svg";
-
-interface NavigationItem {
+type NavigationItem = {
   name: string;
   href: string;
-  icon: string;
-}
+  iconName: 'home' | 'datafactory' | 'filter' | 'dashboard' | 'analysis' | 'ml' | 'assistant';
+  basePath?: string;
+};
 
 const navigation: NavigationItem[] = [
   { 
     name: "Home", 
     href: "/", 
-    icon: iconHome
+    iconName: "home"
   },
-  { 
+  {
     name: "Data Factory", 
-    href: "/data", 
-    icon: iconDataFactory
+    href: "/data/preview", 
+    iconName: "datafactory",
+    basePath: "/data"
   },
-  { 
+  {
     name: "Segmentation / Filtering", 
     href: "/segmentation", 
-    icon: iconFilter
+    iconName: "filter"
   },
   { 
+    name: "Dashboards", 
+    href: "/dashboards", 
+    iconName: "dashboard",
+    basePath: "/dashboards"
+  },
+  {
     name: "Analysis", 
-    href: "/analysis", 
-    icon: iconAnalytics
+    href: "/analysis/trends", 
+    iconName: "analysis",
+    basePath: "/analysis"
   },
   { 
-    name: "ML Modling", 
+    name: "ML Modeling", 
     href: "/modeling", 
-    icon: iconML
+    iconName: "ml"
   },
   { 
     name: "Assistant", 
     href: "/assistant", 
-    icon: iconAssistant
+    iconName: "assistant"
   }
 ];
 
@@ -81,6 +82,7 @@ export function Sidebar({ isOpen, onClose, width, onWidthChange, isCollapsed, on
   const [location] = useLocation();
   const [isResizing, setIsResizing] = useState(false);
   const { user, logout, isLogoutLoading } = useAuth();
+  const labelMaxWidth = Math.max(width - 96, 0);
 
   const handleLogout = async () => {
     try {
@@ -133,44 +135,52 @@ export function Sidebar({ isOpen, onClose, width, onWidthChange, isCollapsed, on
   return (
     <>
       {/* Mobile overlay */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden"
-          onClick={onClose}
-        />
-      )}
+      <div 
+        className={cn(
+          "fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden transition-opacity duration-300",
+          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
+        onClick={onClose}
+      />
       
       {/* Sidebar */}
       <div
         className={cn(
-          "fixed left-0 top-0 z-40 flex h-full flex-col border-r border-border transition-all duration-300 overflow-hidden",
+          "fixed left-0 top-0 z-40 flex h-full flex-col border-r border-border overflow-hidden",
           "bg-sidebar-background",
+          "transition-[transform,box-shadow] duration-400 ease-[cubic-bezier(0.25,0.8,0.25,1)]",
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
-        style={{ width: isCollapsed ? 60 : width }}
+        style={{ 
+          width: isCollapsed ? 60 : width,
+          transition: isResizing
+            ? "none"
+            : "width 280ms cubic-bezier(0.33, 1, 0.68, 1), transform 280ms cubic-bezier(0.22, 1, 0.36, 1)",
+          willChange: isResizing ? undefined : "width, transform",
+        }}
         role="complementary"
         aria-label="Main navigation sidebar"
       >
         {/* Content wrapper with padding */}
         <div className={cn(
-          "flex h-full flex-col justify-between py-2 transition-all",
+          "flex h-full flex-col justify-between py-2 transition-all duration-300 ease-in-out",
           isCollapsed ? "px-1" : "px-2"
         )}>
           {/* Top section */}
           <div className="flex flex-col">
             {/* Logo and buttons */}
             <div className={cn(
-              "flex h-14 items-center mb-1",
+              "flex h-14 items-center mb-1 transition-all duration-300 ease-in-out",
               isCollapsed ? "justify-center" : "justify-between px-2"
             )}>
-              {!isCollapsed && (
-                <p className={cn(
-                  "font-['SF_Compact_Display',_sans-serif] text-[20px] font-semibold text-sidebar-foreground transition-opacity duration-200",
-                  isCollapsed ? "opacity-0" : "opacity-100"
-                )}>
+              <div className={cn(
+                "overflow-hidden transition-all duration-300 ease-in-out",
+                isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"
+              )}>
+                <p className="font-['SF_Compact_Display',_sans-serif] text-[20px] font-semibold text-sidebar-foreground whitespace-nowrap">
                   MONO
                 </p>
-              )}
+              </div>
               <div className="flex items-center gap-1">
                 {/* Desktop collapse button */}
                 <button
@@ -207,60 +217,180 @@ export function Sidebar({ isOpen, onClose, width, onWidthChange, isCollapsed, on
             
             {/* Main Links */}
             <TooltipProvider delayDuration={0}>
-              <div className="flex flex-col gap-1 py-2">
+              <div className="flex flex-col gap-0.5 py-1.5">
                 {navigation.map((item) => {
-                  const isActive = location === item.href || location.startsWith(`${item.href}/`);
-                  
-                  const button = (
+                  const isActive = item.basePath
+                    ? location.startsWith(item.basePath)
+                    : location === item.href || location.startsWith(`${item.href}/`);
+
+                  const iconOpacityClass = isActive
+                    ? "opacity-100"
+                    : "opacity-85 group-hover:opacity-100";
+
+                  const renderIcon = () => {
+                    switch (item.iconName) {
+                      case "home":
+                        return (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            width={20}
+                            height={20}
+                            fill="none"
+                            className="text-current"
+                          >
+                            <path d="M22 10.5L12.8825 2.82207C12.6355 2.61407 12.3229 2.5 12 2.5C11.6771 2.5 11.3645 2.61407 11.1175 2.82207L2 10.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M20.5 5V15.5C20.5 18.3284 20.5 19.7426 19.6213 20.6213C18.7426 21.5 17.3284 21.5 14.5 21.5H9.5C6.67157 21.5 5.25736 21.5 4.37868 20.6213C3.5 19.7426 3.5 18.3284 3.5 15.5V9.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M15 21.5V16.5C15 15.0858 15 14.3787 14.5607 13.9393C14.1213 13.5 13.4142 13.5 12 13.5C10.5858 13.5 9.87868 13.5 9.43934 13.9393C9 14.3787 9 15.0858 9 16.5V21.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        );
+                      case "datafactory":
+                        return (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            width={20}
+                            height={20}
+                            fill="none"
+                            className="text-current"
+                          >
+                            <path d="M13.6903 19.4567C13.5 18.9973 13.5 18.4149 13.5 17.25C13.5 16.0851 13.5 15.5027 13.6903 15.0433C13.944 14.4307 14.4307 13.944 15.0433 13.6903C15.5027 13.5 16.0851 13.5 17.25 13.5C18.4149 13.5 18.9973 13.5 19.4567 13.6903C20.0693 13.944 20.556 14.4307 20.8097 15.0433C21 15.5027 21 16.0851 21 17.25C21 18.4149 21 18.9973 20.8097 19.4567C20.556 20.0693 20.0693 20.556 19.4567 20.8097C18.9973 21 18.4149 21 17.25 21C16.0851 21 15.5027 21 15.0433 20.8097C14.4307 20.556 13.944 20.0693 13.6903 19.4567Z" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="round" />
+                            <path d="M13.6903 8.95671C13.5 8.49728 13.5 7.91485 13.5 6.75C13.5 5.58515 13.5 5.00272 13.6903 4.54329C13.944 3.93072 14.4307 3.44404 15.0433 3.1903C15.5027 3 16.0851 3 17.25 3C18.4149 3 18.9973 3 19.4567 3.1903C20.0693 3.44404 20.556 3.93072 20.8097 4.54329C21 5.00272 21 5.58515 21 6.75C21 7.91485 21 8.49728 20.8097 8.95671C20.556 9.56928 20.0693 10.056 19.4567 10.3097C18.9973 10.5 18.4149 10.5 17.25 10.5C16.0851 10.5 15.5027 10.5 15.0433 10.3097C14.4307 10.056 13.944 9.56928 13.6903 8.95671Z" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="round" />
+                            <path d="M3.1903 19.4567C3 18.9973 3 18.4149 3 17.25C3 16.0851 3 15.5027 3.1903 15.0433C3.44404 14.4307 3.93072 13.944 4.54329 13.6903C5.00272 13.5 5.58515 13.5 6.75 13.5C7.91485 13.5 8.49728 13.5 8.95671 13.6903C9.56928 13.944 10.056 14.4307 10.3097 15.0433C10.5 15.5027 10.5 16.0851 10.5 17.25C10.5 18.4149 10.5 18.9973 10.3097 19.4567C10.056 20.0693 9.56928 20.556 8.95671 20.8097C8.49728 21 7.91485 21 6.75 21C5.58515 21 5.00272 21 4.54329 20.8097C3.93072 20.556 3.44404 20.0693 3.1903 19.4567Z" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="round" />
+                            <path d="M3.1903 8.95671C3 8.49728 3 7.91485 3 6.75C3 5.58515 3 5.00272 3.1903 4.54329C3.44404 3.93072 3.93072 3.44404 4.54329 3.1903C5.00272 3 5.58515 3 6.75 3C7.91485 3 8.49728 3 8.95671 3.1903C9.56928 3.44404 10.056 3.93072 10.3097 4.54329C10.5 5.00272 10.5 5.58515 10.5 6.75C10.5 7.91485 10.5 8.49728 10.3097 8.95671C10.056 9.56928 9.56928 10.056 8.95671 10.3097C8.49728 10.5 7.91485 10.5 6.75 10.5C5.58515 10.5 5.00272 10.5 4.54329 10.3097C3.93072 10.056 3.44404 9.56928 3.1903 8.95671Z" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="round" />
+                          </svg>
+                        );
+                      case "filter":
+                        return (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            width={20}
+                            height={20}
+                            fill="none"
+                            className="text-current"
+                          >
+                            <path d="M8.85746 12.5061C6.36901 10.6456 4.59564 8.59915 3.62734 7.44867C3.3276 7.09253 3.22938 6.8319 3.17033 6.3728C2.96811 4.8008 2.86701 4.0148 3.32795 3.5074C3.7889 3 4.60404 3 6.23433 3H17.7657C19.396 3 20.2111 3 20.672 3.5074C21.133 4.0148 21.0319 4.8008 20.8297 6.37281C20.7706 6.83191 20.6724 7.09254 20.3726 7.44867C19.403 8.60062 17.6261 10.6507 15.1326 12.5135C14.907 12.6821 14.7583 12.9567 14.7307 13.2614C14.4837 15.992 14.2559 17.4876 14.1141 18.2442C13.8853 19.4657 12.1532 20.2006 11.226 20.8563C10.6741 21.2466 10.0043 20.782 9.93278 20.1778C9.79643 19.0261 9.53961 16.6864 9.25927 13.2614C9.23409 12.9539 9.08486 12.6761 8.85746 12.5061Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        );
+                      case "dashboard":
+                        return (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            width={20}
+                            height={20}
+                            fill="none"
+                            className="text-current"
+                          >
+                            <path
+                              d="M2.5 12C2.5 7.52167 2.5 5.2825 3.89124 3.89126C5.28249 2.50002 7.52166 2.50002 12 2.50002C16.4783 2.50002 18.7175 2.50002 20.1088 3.89126C21.5 5.2825 21.5 7.52167 21.5 12C21.5 16.4784 21.5 18.7175 20.1088 20.1088C18.7175 21.5 16.4783 21.5 12 21.5C7.52166 21.5 5.28249 21.5 3.89124 20.1088C2.5 18.7175 2.5 16.4784 2.5 12Z"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                            />
+                            <path d="M2.5 9.00002H21.5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                            <path d="M6.99981 6.00002H7.00879" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M10.9998 6.00002H11.0088" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M17 17C17 14.2386 14.7614 12 12 12C9.23858 12 7 14.2386 7 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                            <path d="M12.707 15.293L11.2928 16.7072" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        );
+                      case "analysis":
+                        return (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            width={20}
+                            height={20}
+                            fill="none"
+                            className="text-current"
+                          >
+                            <path d="M7 17L7 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                            <path d="M12 17L12 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                            <path d="M17 17L17 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                            <path d="M2.5 12C2.5 7.52166 2.5 5.28249 3.89124 3.89124C5.28249 2.5 7.52166 2.5 12 2.5C16.4783 2.5 18.7175 2.5 20.1088 3.89124C21.5 5.28249 21.5 7.52166 21.5 12C21.5 16.4783 21.5 18.7175 20.1088 20.1088C18.7175 21.5 16.4783 21.5 12 21.5C7.52166 21.5 5.28249 21.5 3.89124 20.1088C2.5 18.7175 2.5 16.4783 2.5 12Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                          </svg>
+                        );
+                      case "ml":
+                        return (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            width={20}
+                            height={20}
+                            fill="none"
+                            className="text-current"
+                          >
+                            <path d="M21 21H10C6.70017 21 5.05025 21 4.02513 19.9749C3 18.9497 3 17.2998 3 14V3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                            <path d="M7 4H8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                            <path d="M7 7H11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                            <path d="M5 20C6.07093 18.053 7.52279 13.0189 10.3063 13.0189C12.2301 13.0189 12.7283 15.4717 14.6136 15.4717C17.8572 15.4717 17.387 10 21 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        );
+                      case "assistant":
+                        return (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            width={20}
+                            height={20}
+                            fill="none"
+                            className="text-current"
+                          >
+                            <path d="M12.0045 12H12.0135M16 12H16.009M8.009 12H8.01797" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M21.5 12C21.5 17.2467 17.2467 21.5 12 21.5C10.3719 21.5 8.8394 21.0904 7.5 20.3687C5.63177 19.362 4.37462 20.2979 3.26592 20.4658C3.09774 20.4913 2.93024 20.4302 2.80997 20.31C2.62741 20.1274 2.59266 19.8451 2.6935 19.6074C3.12865 18.5818 3.5282 16.6382 2.98341 15C2.6698 14.057 2.5 13.0483 2.5 12C2.5 6.75329 6.75329 2.5 12 2.5C17.2467 2.5 21.5 6.75329 21.5 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        );
+                    }
+                  };
+
+                  const linkNode = (
                     <Link
                       key={item.name}
                       href={item.href}
                       aria-current={isActive ? "page" : undefined}
+                      className={cn(
+                        "group relative flex items-center rounded-[0.25rem] transition-[background-color,color] duration-200 ease-out",
+                        "focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0",
+                        isCollapsed ? "h-12 w-12 justify-center" : "w-full px-2 py-1.5 gap-2",
+                        isActive
+                          ? "bg-[hsl(var(--ds-primary))] text-[#1d1d1f]"
+                          : "text-sidebar-foreground/85 hover:bg-[hsl(var(--ds-surface-subtle))]"
+                      )}
                     >
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                      <span
                         className={cn(
-                          "w-full hover:bg-sidebar-accent",
-                          isActive && "bg-sidebar-accent",
-                          isCollapsed ? "justify-center px-2" : "justify-start"
+                          "flex h-10 w-10 shrink-0 items-center justify-center transition-opacity duration-200",
+                          iconOpacityClass
                         )}
                       >
-                        <div className="h-4 w-4 shrink-0 flex items-center justify-center">
-                          {item.name === "Data Factory" ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" className="opacity-80">
-                              <path d="M13.6903 19.4567C13.5 18.9973 13.5 18.4149 13.5 17.25C13.5 16.0851 13.5 15.5027 13.6903 15.0433C13.944 14.4307 14.4307 13.944 15.0433 13.6903C15.5027 13.5 16.0851 13.5 17.25 13.5C18.4149 13.5 18.9973 13.5 19.4567 13.6903C20.0693 13.944 20.556 14.4307 20.8097 15.0433C21 15.5027 21 16.0851 21 17.25C21 18.4149 21 18.9973 20.8097 19.4567C20.556 20.0693 20.0693 20.556 19.4567 20.8097C18.9973 21 18.4149 21 17.25 21C16.0851 21 15.5027 21 15.0433 20.8097C14.4307 20.556 13.944 20.0693 13.6903 19.4567Z" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="round"/>
-                              <path d="M13.6903 8.95671C13.5 8.49728 13.5 7.91485 13.5 6.75C13.5 5.58515 13.5 5.00272 13.6903 4.54329C13.944 3.93072 14.4307 3.44404 15.0433 3.1903C15.5027 3 16.0851 3 17.25 3C18.4149 3 18.9973 3 19.4567 3.1903C20.0693 3.44404 20.556 3.93072 20.8097 4.54329C21 5.00272 21 5.58515 21 6.75C21 7.91485 21 8.49728 20.8097 8.95671C20.556 9.56928 20.0693 10.056 19.4567 10.3097C18.9973 10.5 18.4149 10.5 17.25 10.5C16.0851 10.5 15.5027 10.5 15.0433 10.3097C14.4307 10.056 13.944 9.56928 13.6903 8.95671Z" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="round"/>
-                              <path d="M3.1903 19.4567C3 18.9973 3 18.4149 3 17.25C3 16.0851 3 15.5027 3.1903 15.0433C3.44404 14.4307 3.93072 13.944 4.54329 13.6903C5.00272 13.5 5.58515 13.5 6.75 13.5C7.91485 13.5 8.49728 13.5 8.95671 13.6903C9.56928 13.944 10.056 14.4307 10.3097 15.0433C10.5 15.5027 10.5 16.0851 10.5 17.25C10.5 18.4149 10.5 18.9973 10.3097 19.4567C10.056 20.0693 9.56928 20.556 8.95671 20.8097C8.49728 21 7.91485 21 6.75 21C5.58515 21 5.00272 21 4.54329 20.8097C3.93072 20.556 3.44404 20.0693 3.1903 19.4567Z" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="round"/>
-                              <path d="M3.1903 8.95671C3 8.49728 3 7.91485 3 6.75C3 5.58515 3 5.00272 3.1903 4.54329C3.44404 3.93072 3.93072 3.44404 4.54329 3.1903C5.00272 3 5.58515 3 6.75 3C7.91485 3 8.49728 3 8.95671 3.1903C9.56928 3.44404 10.056 3.93072 10.3097 4.54329C10.5 5.00272 10.5 5.58515 10.5 6.75C10.5 7.91485 10.5 8.49728 10.3097 8.95671C10.056 9.56928 9.56928 10.056 8.95671 10.3097C8.49728 10.5 7.91485 10.5 6.75 10.5C5.58515 10.5 5.00272 10.5 4.54329 10.3097C3.93072 10.056 3.44404 9.56928 3.1903 8.95671Z" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="round"/>
-                            </svg>
-                          ) : (
-                            <img 
-                              alt="" 
-                              className="block h-full w-full opacity-80 dark:invert dark:brightness-0 dark:contrast-200" 
-                              src={item.icon} 
-                            />
-                          )}
-                        </div>
-                        {!isCollapsed && (
-                          <span className="ml-2 transition-opacity duration-200 whitespace-nowrap">
-                            {item.name}
-                          </span>
+                        {renderIcon()}
+                      </span>
+                      <span
+                        className={cn(
+                          "min-w-0 flex-1 overflow-hidden truncate text-sm font-medium transition-all duration-300 ease-out group-hover:opacity-100",
+                          isCollapsed ? "opacity-0 -translate-x-1" : "opacity-95 translate-x-0"
                         )}
-                      </Button>
+                        style={{
+                          maxWidth: isCollapsed ? 0 : labelMaxWidth,
+                          marginLeft: isCollapsed ? 0 : 8,
+                          pointerEvents: isCollapsed ? "none" : undefined,
+                        }}
+                        aria-hidden={isCollapsed}
+                      >
+                        {item.name}
+                      </span>
                     </Link>
                   );
-                  
+
                   return isCollapsed ? (
                     <Tooltip key={item.name}>
-                      <TooltipTrigger asChild>
-                        {button}
-                      </TooltipTrigger>
-                      <TooltipContent side="right">
-                        {item.name}
-                      </TooltipContent>
+                      <TooltipTrigger asChild>{linkNode}</TooltipTrigger>
+                      <TooltipContent side="right">{item.name}</TooltipContent>
                     </Tooltip>
-                  ) : button;
+                  ) : (
+                    linkNode
+                  );
                 })}
               </div>
             </TooltipProvider>
@@ -277,43 +407,77 @@ export function Sidebar({ isOpen, onClose, width, onWidthChange, isCollapsed, on
                     <>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Link href="/admin-login">
-                            <Button variant="ghost" size="sm" className="w-full justify-center px-2 text-warning hover:text-warning hover:bg-sidebar-accent">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            asChild
+                            className="w-full justify-center px-2 text-warning hover:text-warning hover:bg-sidebar-accent"
+                          >
+                            <Link href="/admin-login" aria-label="Admin Login">
                               <Shield className="h-4 w-4" />
-                            </Button>
-                          </Link>
+                            </Link>
+                          </Button>
                         </TooltipTrigger>
                         <TooltipContent side="right">Admin Login</TooltipContent>
                       </Tooltip>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Link href="/login">
-                            <Button variant="ghost" size="sm" className="w-full justify-center px-2 hover:bg-sidebar-accent">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            asChild
+                            className="w-full justify-center px-2 hover:bg-sidebar-accent"
+                          >
+                            <Link href="/login" aria-label="Sign In">
                               <LogIn className="h-4 w-4" />
-                            </Button>
-                          </Link>
+                            </Link>
+                          </Button>
                         </TooltipTrigger>
                         <TooltipContent side="right">Sign In</TooltipContent>
                       </Tooltip>
                     </>
                   ) : (
                     <>
-                      <Link href="/admin-login">
-                        <Button variant="ghost" size="sm" className="w-full justify-start text-warning hover:text-warning hover:bg-sidebar-accent">
-                          <Shield className="h-4 w-4" />
-                          <span className="ml-2 transition-opacity duration-200 whitespace-nowrap">
-                            Admin Login
-                          </span>
-                        </Button>
-                      </Link>
-                      <Link href="/login">
-                        <Button variant="ghost" size="sm" className="w-full justify-start hover:bg-sidebar-accent">
-                          <LogIn className="h-4 w-4" />
-                          <span className="ml-2 transition-opacity duration-200 whitespace-nowrap">
-                            Sign In
-                          </span>
-                        </Button>
-                      </Link>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        asChild
+                        className="w-full justify-start text-warning hover:text-warning hover:bg-sidebar-accent transition-all duration-200 ease-in-out"
+                      >
+                        <Link href="/admin-login">
+                          <Shield className="h-4 w-4 shrink-0" />
+                          <div
+                            className={cn(
+                              "overflow-hidden transition-all duration-300 ease-in-out",
+                              isCollapsed ? "w-0 opacity-0 ml-0" : "w-auto opacity-100 ml-2"
+                            )}
+                          >
+                            <span className="whitespace-nowrap">
+                              Admin Login
+                            </span>
+                          </div>
+                        </Link>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        asChild
+                        className="w-full justify-start hover:bg-sidebar-accent transition-all duration-200 ease-in-out"
+                      >
+                        <Link href="/login">
+                          <LogIn className="h-4 w-4 shrink-0" />
+                          <div
+                            className={cn(
+                              "overflow-hidden transition-all duration-300 ease-in-out",
+                              isCollapsed ? "w-0 opacity-0 ml-0" : "w-auto opacity-100 ml-2"
+                            )}
+                          >
+                            <span className="whitespace-nowrap">
+                              Sign In
+                            </span>
+                          </div>
+                        </Link>
+                      </Button>
                     </>
                   )}
                 </>
@@ -322,28 +486,29 @@ export function Sidebar({ isOpen, onClose, width, onWidthChange, isCollapsed, on
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm" className={cn(
-                      "w-full h-auto py-2 hover:bg-sidebar-accent",
+                      "w-full h-auto py-2 hover:bg-sidebar-accent transition-all duration-200 ease-in-out",
                       isCollapsed ? "justify-center px-2" : "justify-start"
                     )}>
                       <div className="flex items-center w-full gap-2.5">
-                        <Avatar className="h-6 w-6 shrink-0">
+                        <Avatar className="h-6 w-6 shrink-0 transition-transform duration-200">
                           <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.firstName || "User"} />
                           <AvatarFallback className="text-xs">
                             {user?.firstName?.[0] || "U"}{user?.lastName?.[0] || ""}
                           </AvatarFallback>
                         </Avatar>
-                        {!isCollapsed && (
-                          <div className="flex flex-col items-start min-w-0 flex-1 transition-opacity duration-200">
-                            <span className="font-medium text-sidebar-foreground truncate whitespace-nowrap">
-                              {user?.firstName} {user?.lastName}
-                            </span>
-                            {user?.isAdmin && (
-                              <Badge variant="secondary" className="text-[10px] h-4 px-1">
-                                Admin
-                              </Badge>
-                            )}
-                          </div>
-                        )}
+                        <div className={cn(
+                          "flex flex-col items-start min-w-0 flex-1 overflow-hidden transition-all duration-300 ease-in-out",
+                          isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"
+                        )}>
+                          <span className="font-medium text-sidebar-foreground truncate whitespace-nowrap">
+                            {user?.firstName} {user?.lastName}
+                          </span>
+                          {user?.isAdmin && (
+                            <Badge variant="secondary" className="text-[10px] h-4 px-1">
+                              Admin
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </Button>
                   </DropdownMenuTrigger>
@@ -364,25 +529,25 @@ export function Sidebar({ isOpen, onClose, width, onWidthChange, isCollapsed, on
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <Link href="/profile">
-                      <DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile">
                         <User className="mr-2 h-4 w-4" />
                         Profile
-                      </DropdownMenuItem>
-                    </Link>
-                    <Link href="/settings">
-                      <DropdownMenuItem>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/settings">
                         <Settings className="mr-2 h-4 w-4" />
                         Settings
-                      </DropdownMenuItem>
-                    </Link>
+                      </Link>
+                    </DropdownMenuItem>
                     {user?.isAdmin && (
-                      <Link href="/admin">
-                        <DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin">
                           <Shield className="mr-2 h-4 w-4" />
                           Admin Panel
-                        </DropdownMenuItem>
-                      </Link>
+                        </Link>
+                      </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleLogout} disabled={isLogoutLoading}>
@@ -392,43 +557,6 @@ export function Sidebar({ isOpen, onClose, width, onWidthChange, isCollapsed, on
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
-              
-              {/* Settings Link */}
-              {isCollapsed ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Link href="/settings">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className={cn(
-                          "w-full justify-center px-2 hover:bg-sidebar-accent",
-                          location === "/settings" && "bg-sidebar-accent"
-                        )}
-                      >
-                        <Settings className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">Settings</TooltipContent>
-                </Tooltip>
-              ) : (
-                <Link href="/settings">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className={cn(
-                      "w-full justify-start hover:bg-sidebar-accent",
-                      location === "/settings" && "bg-sidebar-accent"
-                    )}
-                  >
-                    <Settings className="h-4 w-4" />
-                    <span className="ml-2 transition-opacity duration-200 whitespace-nowrap">
-                      Settings
-                    </span>
-                  </Button>
-                </Link>
-              )}
             </div>
           </TooltipProvider>
         </div>
@@ -437,8 +565,11 @@ export function Sidebar({ isOpen, onClose, width, onWidthChange, isCollapsed, on
       {/* Resize handle */}
       {!isCollapsed && (
         <div
-          className="fixed top-0 hidden h-full w-1 cursor-col-resize select-none lg:block group z-50 hover:bg-sidebar-accent transition-colors"
-          style={{ left: `${width}px` }}
+          className="fixed top-0 hidden h-full w-1 cursor-col-resize select-none lg:block group z-50 hover:bg-sidebar-accent transition-all duration-200 ease-in-out"
+          style={{ 
+            left: `${width}px`,
+            transition: isResizing ? 'none' : 'left 300ms ease-in-out, background-color 200ms ease-in-out'
+          }}
           onMouseDown={(event) => {
             if (event.button !== 0) return;
             event.preventDefault();
@@ -450,8 +581,8 @@ export function Sidebar({ isOpen, onClose, width, onWidthChange, isCollapsed, on
         >
           <div
             className={cn(
-              "absolute inset-y-0 left-1/2 -translate-x-1/2 w-0.5 transition-colors",
-              isResizing ? "bg-sidebar-accent/50" : "bg-transparent"
+              "absolute inset-y-0 left-1/2 -translate-x-1/2 w-0.5 transition-all duration-200 ease-in-out",
+              isResizing ? "bg-sidebar-accent/50 w-1" : "bg-transparent group-hover:bg-sidebar-accent/30"
             )}
           />
         </div>

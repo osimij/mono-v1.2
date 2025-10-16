@@ -40,8 +40,8 @@ const tourSteps: TourStep[] = [
     title: "Data Factory",
     description: "This is where you upload your CSV or Excel files. Click here to get started with your data.",
     icon: Upload,
-    target: 'a[href="/data"], [data-nav="data"]',
-    path: "/data",
+    target: 'a[href="/data/preview"], [data-nav="data"]',
+    path: "/data/preview",
     position: 'bottom'
   },
   {
@@ -54,11 +54,11 @@ const tourSteps: TourStep[] = [
   },
   {
     id: 5,
-    title: "Analysis & Charts",
-    description: "Create interactive visualizations here. This is where you'll explore patterns in your data.",
+    title: "Dashboards",
+    description: "View your overview dashboard with curated KPIs and saved visualizations.",
     icon: BarChart3,
-    target: 'a[href="/analysis"], [data-nav="analysis"]',
-    path: "/analysis",
+    target: 'a[href="/dashboards"], [data-nav="dashboards"]',
+    path: "/dashboards",
     position: 'bottom'
   },
   {

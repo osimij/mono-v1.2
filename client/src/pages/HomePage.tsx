@@ -273,7 +273,7 @@ export function HomePage() {
                   size="lg"
                   className="w-fit rounded-full bg-[#abf132] px-12 py-6 text-base font-semibold text-black shadow-[0_24px_68px_rgba(171,241,50,0.35)] transition duration-300 hover:bg-[#b8ff3f] hover:shadow-[0_20px_54px_rgba(171,241,50,0.28)] focus:ring-0"
                 >
-                  <Link href="/data">Get started</Link>
+                  <Link href="/data/preview">Get started</Link>
                 </Button>
                 
                 <div className="flex flex-wrap gap-3 text-[0.65rem] font-medium uppercase tracking-[0.32em] text-black/35 dark:text-white/40">
